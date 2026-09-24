@@ -71,6 +71,7 @@ the-daily-web/
 │   ├── services/
 │   │   ├── weatherService.js   # Server-side caching (max 15-min stale cache)
 │   │   └── analyticsService.js
+│   ├── validators/             # Input validation helpers, one file per domain (e.g. userValidators.js)
 │   └── views/
 │       ├── components/
 │       │   ├── header.ejs
@@ -170,4 +171,4 @@ Before project defense, the database must contain:
 - **No Unicode Math:** When math notations are needed, strictly use LaTeX format (`$x$` or `$$...$$`).
 - **Git Commit Standards:**
   - Small, atomic commits with informative English messages.
-  - Feature branches for distinct modules (e.g., `feat/auto-save`, `feat/impact-analytics`).
+  - Feature branches for distinct modules (e.g., `feat/auto-save`, `feat/impact-analytics`).- **Naming:** Never use meaningless or cryptic variable names (e.g. `v`, `x`, `tmp`, `d`). Names must clearly describe what they hold (e.g. `userValidators`, not `v`). Conventional short names like `req`, `res`, `err` are fine.
