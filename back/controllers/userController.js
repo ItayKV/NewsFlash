@@ -2,9 +2,6 @@ const userService = require('../services/userService');
 const { HTTP_STATUS, MONGO_DUPLICATE_KEY_ERROR } = require('../config/constants');
 const userValidators = require('../validators/userValidators');
 
-// TODO: replace with real authentication/authorization once the auth task lands.
-const isAdmin = () => true;
-
 const invalidResponse = (res, message) => res.status(HTTP_STATUS.BAD_REQUEST).json({ error: message });
 
 async function signup(req, res, next) {
@@ -37,18 +34,32 @@ async function login(req, res, next) {
 
     const user = await userService.login(email, hash_password);
     if (!user) return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: 'Wrong email or password' });
-    res.status(HTTP_STATUS.OK).json(user);
+
+    // Regenerate the session id on login to prevent session fixation.
+    // The stored role is what RBAC middleware checks on later requests.
+    req.session.regenerate((err) => {
+      if (err) return next(err);
+      req.session.userId = user.id;
+      req.session.role = user.role;
+      res.status(HTTP_STATUS.OK).json(user);
+    });
   } catch (err) {
     next(err);
   }
+}
+
+function logout(req, res, next) {
+  req.session.destroy((err) => {
+    if (err) return next(err);
+    res.clearCookie('connect.sid');
+    res.status(HTTP_STATUS.OK).json({ message: 'Logged out' });
+  });
 }
 
 async function deleteUser(req, res, next) {
   try {
     const user = await userService.findById(req.params.user_id);
     if (!user) return res.status(HTTP_STATUS.NOT_FOUND).json({ error: 'User not found' });
-    // Later: allow only admin or the user deleting their own account.
-    if (!isAdmin()) return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Not permitted' });
 
     await userService.deleteById(user.id);
     res.status(HTTP_STATUS.OK).json({ message: 'User deleted' });
@@ -87,7 +98,6 @@ async function updateUser(req, res, next) {
 
 async function listUsers(req, res, next) {
   try {
-    if (!isAdmin()) return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Not permitted' });
     res.status(HTTP_STATUS.OK).json(await userService.listAll());
   } catch (err) {
     next(err);
@@ -96,7 +106,6 @@ async function listUsers(req, res, next) {
 
 async function getUser(req, res, next) {
   try {
-    if (!isAdmin()) return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Not permitted' });
     const user = await userService.findById(req.params.user_id);
     if (!user) return res.status(HTTP_STATUS.NOT_FOUND).json({ error: 'User not found' });
     res.status(HTTP_STATUS.OK).json(user);
@@ -105,4 +114,4 @@ async function getUser(req, res, next) {
   }
 }
 
-module.exports = { signup, login, deleteUser, updateUser, listUsers, getUser };
+module.exports = { signup, login, logout, deleteUser, updateUser, listUsers, getUser };

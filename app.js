@@ -1,5 +1,6 @@
 const path = require('path');
 const express = require('express');
+const sessionMiddleware = require('./back/config/session');
 const userRoutes = require('./back/routes/userRoutes');
 const { HTTP_STATUS } = require('./back/config/constants');
 
@@ -10,6 +11,7 @@ app.set('views', path.join(__dirname, 'back', 'views'));
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(sessionMiddleware);
 
 app.get('/', (req, res) => {
   res.render('pages/home');
