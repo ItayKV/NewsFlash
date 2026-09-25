@@ -171,3 +171,71 @@ Before project defense, the database must contain:
 - **Git Commit Standards:**
   - Small, atomic commits with informative English messages.
   - Feature branches for distinct modules (e.g., `feat/auto-save`, `feat/impact-analytics`).
+
+  ---
+
+## 7. Implementation Decisions (Binding)
+
+These decisions refine the requirements above. When implementing any related feature, follow them exactly.
+
+### 7.1 Article Workflow – Allowed State Transitions
+Only the transitions below are allowed. The server must reject any other transition.
+
+| From | To | Who | Notes |
+|---|---|---|---|
+| (new) | `in_progress` | Reporter only | Article is owned by the reporter who created it. |
+| `in_progress` | `pending_approval` | Owning reporter | |
+| `pending_approval` | `published` | Editor | `draft` is copied to `published`; a new entry is added to `revisions` with approval time and approving editor. |
+| `pending_approval` | `returned_for_revision` | Editor | A non-empty editor note is required. Without it, the server rejects the request. |
+| `returned_for_revision` | `pending_approval` | Owning reporter | The current note is cleared from the active view and kept in `editorNotesHistory`. |
+| `published` | `in_progress` | Owning reporter | Happens when the reporter starts editing an update. The `published` snapshot stays live. |
+
+- There is **no** transition from `pending_approval` back to `in_progress`, not even by the reporter.
+- When an editor returns an update of a published article, the `published` snapshot remains live and unchanged.
+
+### 7.2 Content Editing Permissions
+A reporter can never edit an article they do not own, in any state.
+
+| Status | Owning reporter | Editor |
+|---|---|---|
+| `in_progress` | Can edit | Can edit |
+| `pending_approval` | Locked | Can edit |
+| `returned_for_revision` | Can edit | Can edit |
+| `published` | Can start editing an update | Can edit |
+
+- Editor edits always go to `draft` and never change `status`. To publish, the editor goes through the normal approve action.
+- Concurrent editing of the same article is not supported (assumed not to occur).
+
+### 7.3 Deletion
+- Only an editor can delete an article, in any state.
+- Deleting an article also deletes its comments and view data.
+
+### 7.4 Server-Side Validation Order
+For every status change request, the server checks, in order:
+1. The user's role.
+2. Article ownership (for reporters).
+3. Whether the transition appears in the allowed transitions table (7.1).
+
+If any check fails, return an error with a clear message (403 for permission errors, 400 for invalid transitions or missing note). Never crash.
+
+### 7.5 Article Model Structure
+- `published`: the approved version shown to the public (title, summary, body, image, category).
+- `draft`: same fields; the version being worked on. All auto-saves write only to `draft`.
+- `status`: the workflow state of the draft.
+- `editorNote`: the current editor note when the article is returned for revision.
+- `editorNotesHistory`: previous editor notes.
+- `revisions`: history of all approved versions, with approval time and approving editor.
+
+**Public display rule:** The feed and the article page show every article that has a `published` snapshot, **regardless of `status`**, and always render content from `published`. Never filter public content by `status`.
+
+This structure also supports: the editor's comparison view (`published` vs `draft`), articles with multiple post-publication updates, and update markers on the Impact Analytics chart (taken from `revisions`).
+
+### 7.6 View Counting
+- Views are counted as **unique views**: each visitor is counted once per article (identified by a visitor cookie). Page refreshes by the same visitor are ignored.
+- Rationale (for the project defense): prevents repeated refreshes from inflating the statistics, so the chart reflects real readers.
+
+### 7.7 Bonus Feature – Live Article Update (do NOT implement until explicitly requested)
+To be implemented only after all core requirements are complete.
+- When an editor approves an update, readers currently viewing that article receive the new version automatically via Server-Sent Events (SSE).
+- Only the article content is updated in place, without a page reload, so a comment being typed and the scroll position are preserved.
+- A short notice is shown that the article was updated.
