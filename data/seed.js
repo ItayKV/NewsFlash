@@ -15,14 +15,14 @@ const SEED_USERS = [
 ];
 
 // Demo accounts only: each password equals the user's email. Goes straight through
-// the service, so it intentionally skips the signup password-strength rules.
+// the service, so it intentionally skips the addUser password-strength rules.
 async function seedUsers() {
   for (const seedUser of SEED_USERS) {
     if (!(await userValidators.isEmailUnique(seedUser.email))) {
       console.log(`Skipped existing user ${seedUser.email}`);
       continue;
     }
-    await userService.signup({ ...seedUser, hash_password: seedUser.email });
+    await userService.addUser({ ...seedUser, password: seedUser.email });
     console.log(`Created user ${seedUser.email}`);
   }
 }
