@@ -17,11 +17,65 @@ body {
   color: var(--color-text);
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  background-color: #fff;
+  border-bottom: 1px solid #e2e2e2;
+}
+
+.toolbar__brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.toolbar__link {
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.toolbar__link:hover {
+  color: var(--color-accent);
+}
+
+.toolbar__button {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background-color: var(--color-accent);
+  color: #fff;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.toolbar__button:hover {
+  opacity: 0.9;
 }
 
 .landing {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   padding: 2rem;
 }
@@ -36,4 +90,68 @@ body {
   margin-top: 0.5rem;
   font-size: 1.1rem;
   color: #555;
+}
+
+.auth {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.auth__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 320px;
+  background-color: #fff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.auth__form h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.auth__form label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.auth__form input {
+  font: inherit;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+}
+
+.auth__form button {
+  margin-top: 0.5rem;
+  font: inherit;
+  padding: 0.6rem;
+  border: none;
+  border-radius: 4px;
+  background-color: var(--color-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.auth__form button:hover {
+  opacity: 0.9;
+}
+
+.auth__error {
+  min-height: 1.2em;
+  color: var(--color-accent);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.auth__error:empty {
+  visibility: hidden;
 }
