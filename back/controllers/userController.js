@@ -4,13 +4,13 @@ const userValidators = require('../validators/userValidators');
 
 const invalidResponse = (res, message) => res.status(HTTP_STATUS.BAD_REQUEST).json({ error: message });
 
-async function signup(req, res, next) {
+async function addUser(req, res, next) {
   try {
-    const { role, name, email, hash_password } = req.body || {};
+    const { role, name, email, password } = req.body || {};
     if (!userValidators.isValidRole(role)) return invalidResponse(res, 'Invalid role');
     if (!userValidators.isValidName(name)) return invalidResponse(res, 'Invalid name');
     if (!userValidators.isValidEmail(email)) return invalidResponse(res, 'Invalid email');
-    if (!userValidators.isValidPassword(hash_password)) {
+    if (!userValidators.isValidPassword(password)) {
       return invalidResponse(
         res,
         'Password must be at least 8 characters with a number, an english letter and a special mark'
@@ -18,7 +18,7 @@ async function signup(req, res, next) {
     }
     if (!(await userValidators.isEmailUnique(email))) return invalidResponse(res, 'Email already exists');
 
-    const user = await userService.signup({ role, name, email, hash_password });
+    const user = await userService.addUser({ role, name, email, password });
     res.status(HTTP_STATUS.CREATED).json({ id: user.id });
   } catch (err) {
     if (err.code === MONGO_DUPLICATE_KEY_ERROR) return invalidResponse(res, 'Email already exists');
@@ -28,11 +28,11 @@ async function signup(req, res, next) {
 
 async function login(req, res, next) {
   try {
-    const { email, hash_password } = req.body || {};
+    const { email, password } = req.body || {};
     if (!userValidators.isValidEmail(email)) return invalidResponse(res, 'Invalid email');
-    if (!userValidators.isSafePassword(hash_password)) return invalidResponse(res, 'Invalid password');
+    if (!userValidators.isSafePassword(password)) return invalidResponse(res, 'Invalid password');
 
-    const user = await userService.login(email, hash_password);
+    const user = await userService.login(email, password);
     if (!user) return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: 'Wrong email or password' });
 
     // Regenerate the session id on login to prevent session fixation.
@@ -70,23 +70,23 @@ async function deleteUser(req, res, next) {
 
 async function updateUser(req, res, next) {
   try {
-    const { old_hashed_password, new_hashed_password, name, role } = req.body || {};
-    if (!userValidators.isSafePassword(old_hashed_password)) return invalidResponse(res, 'Invalid password');
+    const { old_password, new_password, name, role } = req.body || {};
+    if (!userValidators.isSafePassword(old_password)) return invalidResponse(res, 'Invalid password');
 
     // Authenticate first; a missing user and a wrong password look the same.
     const user = await userService.findById(req.params.user_id);
-    if (!user || !(await userService.verifyPassword(user, old_hashed_password))) {
+    if (!user || !(await userService.verifyPassword(user, old_password))) {
       return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Unauthenticated' });
     }
 
-    if (new_hashed_password != null && !userValidators.isValidPassword(new_hashed_password)) {
+    if (new_password != null && !userValidators.isValidPassword(new_password)) {
       return invalidResponse(res, 'Invalid new password');
     }
     if (name != null && !userValidators.isValidName(name)) return invalidResponse(res, 'Invalid name');
     if (role != null && !userValidators.isValidRole(role)) return invalidResponse(res, 'Invalid role');
 
     const updated = await userService.update(user, {
-      password: new_hashed_password,
+      password: new_password,
       name,
       role,
     });
@@ -114,4 +114,4 @@ async function getUser(req, res, next) {
   }
 }
 
-module.exports = { signup, login, logout, deleteUser, updateUser, listUsers, getUser };
+module.exports = { addUser, login, logout, deleteUser, updateUser, listUsers, getUser };
