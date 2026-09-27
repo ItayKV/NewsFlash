@@ -18,7 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (response.ok) {
-      window.location.href = '/';
+      const user = await response.json();
+      if (user.role === window.RoleEnum.REPORTER) {
+        window.location.href = '/reporter';
+      } else if (user.role === window.RoleEnum.EDITOR) {
+        window.location.href = '/editor';
+      } else {
+        window.location.href = '/';
+      }
       return;
     }
 

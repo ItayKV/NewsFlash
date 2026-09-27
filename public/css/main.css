@@ -155,3 +155,78 @@ body {
 .auth__error:empty {
   visibility: hidden;
 }
+
+.dashboard {
+  flex: 1;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.dashboard h1 {
+  font-size: 1.75rem;
+  margin-bottom: 1.5rem;
+  color: var(--color-accent);
+}
+
+.dashboard__subtitle {
+  margin-bottom: 1.5rem;
+  color: #555;
+}
+
+.dashboard__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dashboard__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: #fff;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard__title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.dashboard__meta {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.dashboard__status {
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.dashboard__status--published {
+  background-color: #e3f5e6;
+  color: #1e7a34;
+}
+
+.dashboard__status--pending {
+  background-color: #fff4d9;
+  color: #8a6300;
+}
+
+.dashboard__status--progress {
+  background-color: #e6edff;
+  color: #2a4bb8;
+}
+
+.dashboard__status--returned {
+  background-color: #fde3e3;
+  color: var(--color-accent);
+}
