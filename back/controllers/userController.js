@@ -73,6 +73,10 @@ async function updateUser(req, res, next) {
     const { old_password, new_password, name, role } = req.body || {};
     if (!userValidators.isSafePassword(old_password)) return invalidResponse(res, 'Invalid password');
 
+    if (role != null && req.session.userId === req.params.user_id) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Cannot change your own role' });
+    }
+
     // Authenticate first; a missing user and a wrong password look the same.
     const user = await userService.findById(req.params.user_id);
     if (!user || !(await userService.verifyPassword(user, old_password))) {
