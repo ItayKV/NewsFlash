@@ -2,7 +2,9 @@ const path = require('path');
 const express = require('express');
 const sessionMiddleware = require('./back/config/session');
 const userRoutes = require('./back/routes/userRoutes');
+const apiRoutes = require('./back/routes/apiRoutes');
 const userService = require('./back/services/userService');
+const weatherService = require('./back/services/weatherService');
 const { HTTP_STATUS } = require('./back/config/constants');
 const { RoleEnum } = require('./back/models/User');
 
@@ -24,7 +26,8 @@ app.use((req, res, next) => {
 });
 
 app.get('/', (req, res) => {
-  res.render('pages/home');
+  const weather = weatherService.getCurrentWeather();
+  res.render('pages/home', { weather });
 });
 
 app.get('/login', (req, res) => {
@@ -81,6 +84,7 @@ app.get('/editor/articles', requirePageRole(RoleEnum.EDITOR), (req, res) => {
 });
 
 app.use(userRoutes);
+app.use(apiRoutes);
 
 // Minimal JSON error handler (malformed JSON -> 400, otherwise 500).
 app.use((err, req, res, next) => {

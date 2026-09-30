@@ -8,9 +8,14 @@
 </head>
 <body>
   <%- include('../components/header') %>
-  <main class="landing">
-    <h1>Home Component</h1>
-    <p class="tagline">News, as it happens.</p>
-  </main>
+  <div class="home-layout">
+    <main class="landing">
+      <h1>Home Component</h1>
+      <p class="tagline">News, as it happens.</p>
+    </main>
+    <aside class="sidebar">
+      <%- include('../components/weatherWidget', { weather }) %>
+    </aside>
+  </div>
 </body>
 </html>
