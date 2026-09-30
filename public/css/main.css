@@ -107,9 +107,19 @@ body {
   color: var(--color-accent);
 }
 
-.weather-widget__icon {
+.weather-widget__icon-frame {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 64px;
   height: 64px;
+  border-radius: 50%;
+  background-color: #cfe8f7;
+}
+
+.weather-widget__icon {
+  width: 56px;
+  height: 56px;
 }
 
 .weather-widget__temp {
