@@ -45,15 +45,6 @@ const contentSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const editorNoteSchema = new mongoose.Schema(
-  {
-    note: { type: String, required: true, trim: true },
-    editor: { type: String, ref: 'User', required: true },
-    createdAt: { type: Date, default: Date.now },
-  },
-  { _id: false }
-);
-
 const revisionSchema = new mongoose.Schema(
   {
     content: { type: contentSchema, required: true },
@@ -78,20 +69,17 @@ const articleSchema = new mongoose.Schema(
     // The working copy. Auto-save writes only here.
     draft: { type: contentSchema, default: () => ({}) },
     editorNote: { type: String, trim: true, default: '' },
-    editorNotesHistory: { type: [editorNoteSchema], default: [] },
     revisions: { type: [revisionSchema], default: [] },
     publishedAt: { type: Date }, // first publication only
-    viewCount: { type: Number, default: 0, min: 0 }, // unique views (section 7.6)
   },
-  { timestamps: true }
+  { timestamps: { createdAt: false } }
 );
 
 // Search over the public version only.
 articleSchema.index({ 'published.title': 'text', 'published.summary': 'text' });
 // Public feed: articles that have a "published" snapshot (never filtered by status),
-// sorted newest first or most popular first.
+// sorted newest first.
 articleSchema.index({ publishedAt: -1 });
-articleSchema.index({ viewCount: -1, publishedAt: -1 });
 articleSchema.index({ 'published.category': 1, publishedAt: -1 });
 // Editor queue by status, reporter workspace by author.
 articleSchema.index({ status: 1, updatedAt: -1 });
