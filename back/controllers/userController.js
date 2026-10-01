@@ -65,7 +65,7 @@ async function updateUser(req, res, next) {
     // Authenticate first; a missing user and a wrong password look the same.
     const user = await userService.findById(req.params.user_id);
     if (!user || !(await userService.verifyPassword(user, old_password))) {
-      return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Unauthenticated' });
+      return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: 'Unauthenticated' });
     }
 
     if (new_password != null && !userValidators.isValidPassword(new_password)) {
