@@ -61,6 +61,9 @@ the-daily-web/
 │   ├── models/
 │   │   ├── User.js
 │   │   ├── Article.js
+│   │   ├── ArticleDraft.js     # Working copy, one per article (see 7.5)
+│   │   ├── ArticleRevision.js  # One immutable document per approval (see 7.5)
+│   │   ├── Category.js         # Editor-managed categories (see 7.10)
 │   │   ├── Comment.js
 │   │   └── ArticleViewLog.js   # High-throughput aggregated analytics model
 │   ├── routes/
@@ -75,7 +78,10 @@ the-daily-web/
 │   ├── services/
 │   │   ├── weatherService.js   # Server-side caching (max 15-min stale cache)
 │   │   ├── analyticsService.js
+│   │   ├── articleService.js   # Article workflow, drafts and approvals
 │   │   └── activityLogger.js   # Server activity log (see 7.9)
+│   ├── validators/             # Input validation helpers, one file per domain
+│   │   └── articleValidators.js
 │   └── views/
 │       ├── components/
 │       │   ├── header.ejs
@@ -191,9 +197,9 @@ Only the transitions below are allowed. The server must reject any other transit
 |---|---|---|---|
 | (new) | `in_progress` | Reporter only | Article is owned by the reporter who created it. |
 | `in_progress` | `pending_approval` | Owning reporter | |
-| `pending_approval` | `published` | Editor | `draft` is copied to `published`; a new entry is added to `revisions` with approval time and approving editor. |
+| `pending_approval` | `published` | Editor | The draft content is copied to `published` and a new `ArticleRevision` is created (see 7.5). |
 | `pending_approval` | `returned_for_revision` | Editor | A non-empty editor note is required. Without it, the server rejects the request. |
-| `returned_for_revision` | `pending_approval` | Owning reporter | The current note is cleared from the active view and kept in `editorNotesHistory`. |
+| `returned_for_revision` | `pending_approval` | Owning reporter | The editor note is cleared. There is no notes history. |
 | `published` | `in_progress` | Owning reporter | Happens when the reporter starts editing an update. The `published` snapshot stays live. |
 
 - There is **no** transition from `pending_approval` back to `in_progress`, not even by the reporter.
@@ -204,17 +210,18 @@ A reporter can never edit an article they do not own, in any state.
 
 | Status | Owning reporter | Editor |
 |---|---|---|
-| `in_progress` | Can edit | Can edit |
+| `in_progress` | Can edit | Cannot edit |
 | `pending_approval` | Locked | Can edit |
-| `returned_for_revision` | Can edit | Can edit |
-| `published` | Can start editing an update | Can edit |
+| `returned_for_revision` | Can edit | Cannot edit |
+| `published` | Can start editing an update | Cannot edit |
 
-- Editor edits always go to `draft` and never change `status`. To publish, the editor goes through the normal approve action.
+- An editor can edit article content **only while the article is `pending_approval`**.
+- Editor edits always go to the draft and never change `status`. An editor changes `status` only by approving or returning the article (7.1).
 - Concurrent editing of the same article is not supported (assumed not to occur).
 
 ### 7.3 Deletion
 - Only an editor can delete an article, in any state.
-- Deleting an article also deletes its comments and view data.
+- Deleting an article also deletes its `ArticleDraft`, all its `ArticleRevision` documents, its comments and its view data.
 
 ### 7.4 Server-Side Validation Order
 For every status change request, the server checks, in order:
@@ -225,20 +232,39 @@ For every status change request, the server checks, in order:
 If any check fails, return an error with a clear message (403 for permission errors, 400 for invalid transitions or missing note). Never crash.
 
 ### 7.5 Article Model Structure
-- `published`: the approved version shown to the public (title, summary, body, image, category).
-- `draft`: same fields; the version being worked on. All auto-saves write only to `draft`.
-- `status`: the workflow state of the draft.
-- `editorNote`: the current editor note when the article is returned for revision.
-- `editorNotesHistory`: previous editor notes.
-- `revisions`: history of all approved versions, with approval time and approving editor.
+An article is stored in three models.
 
-**Public display rule:** The feed and the article page show every article that has a `published` snapshot, **regardless of `status`**, and always render content from `published`. Never filter public content by `status`.
+**`Article`** (`back/models/Article.js`):
+- `author`: the owning reporter. Never changes.
+- `status`: the workflow state (7.1).
+- `published`: the public version. Empty until the first approval.
+- `editorNote`: the current editor note only (set on return, cleared on resubmit and on approval).
+- `publishedAt`: the time of the **first** publication only.
+- Timestamps: `updatedAt` only (no `createdAt`).
 
-This structure also supports: the editor's comparison view (`published` vs `draft`), articles with multiple post-publication updates, and update markers on the Impact Analytics chart (taken from `revisions`).
+**`ArticleDraft`** (`back/models/ArticleDraft.js`):
+- The working copy. Exactly one per article (unique `article` reference).
+- Auto-save writes only here, with an upsert.
+- Readers never see it.
+
+**`ArticleRevision`** (`back/models/ArticleRevision.js`):
+- One document per approval, created at the moment of approval (`content`, `approvedAt`, `approvedBy`).
+- All fields are immutable.
+- Used for the update markers on the Impact Analytics chart.
+
+**Shared content schema:** the content fields (`title`, `summary`, `body`, `imageUrl`, `categoryId`) use one shared schema (`contentSchema`) in `published`, in the draft and in revisions.
+
+**Approval:** one update of the `Article` document (set `published`, set `status`, set `publishedAt` on the first approval only, clear `editorNote`), then create the `ArticleRevision`.
+
+**Public display rule:** The feed and the article page show every article that has a `published` snapshot, **regardless of `status`**, and always render content from `published` (see 7.11).
+
+This structure also supports: the editor's comparison view (`published` vs the draft), articles with multiple post-publication updates, and update markers on the Impact Analytics chart (taken from `ArticleRevision`).
 
 ### 7.6 View Counting
 - Views are counted as **unique views**: each visitor is counted once per article (identified by a visitor cookie). Page refreshes by the same visitor are ignored.
 - Rationale (for the project defense): prevents repeated refreshes from inflating the statistics, so the chart reflects real readers.
+- Views are stored in a separate model, not in `Article` (to be implemented in a future task).
+- If a popularity counter is kept on `Article`, it is updated in batches, never on every view, and with `{ timestamps: false }` so it does not change `updatedAt`.
 
 ### 7.7 CRUD Endpoints
 - The server must expose CRUD (Create, Read, Update, Delete) REST endpoints for the **User**, **Article**, **Comment** and **View** (`ArticleViewLog`) models.
@@ -264,3 +290,21 @@ This structure also supports: the editor's comparison view (`published` vs `draf
 - Written to the console and appended to `logs/activity.log` (`logs/` is git-ignored).
 - Never log passwords, password hashes, session IDs or secrets.
 - A logging failure must never fail the request or crash the server.
+
+### 7.10 Categories
+- Categories are stored in a separate `Category` model (`back/models/Category.js`).
+- Only editors manage categories (full CRUD).
+- Category names are unique, ignoring case ("Sports" and "sports" are the same name).
+- An article stores one `categoryId`, in the draft and in `published`.
+- A category that is used by any published article or any draft cannot be deleted.
+
+### 7.11 Public Reads
+- Every public query (feed, article page) returns only public fields: the `published` content, the author's name and `publishedAt`.
+- Never send drafts, editor notes or `status` to readers.
+- Never filter public content by `status`.
+
+### 7.12 Authentication Contract
+- Implemented in `back/middleware/rbac.js`.
+- The logged-in user is `req.session.userId` and `req.session.role`.
+- Routes use `requireRole(...roles)` and `requireSelfOrRole(paramName, ...roles)`.
+- Services never read `req`. Controllers build an actor object `{ id, role }` from the session and pass it to services.
