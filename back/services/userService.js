@@ -12,8 +12,8 @@ async function login(email, password) {
 }
 
 /** Creates a user; the password is bcrypt-hashed before storing. */
-async function signup({ role, name, email, hash_password }) {
-  const hashed = await bcrypt.hash(hash_password, SALT_ROUNDS);
+async function addUser({ role, name, email, password }) {
+  const hashed = await bcrypt.hash(password, SALT_ROUNDS);
   return User.create({ role, name, email, hash_password: hashed });
 }
 
@@ -36,7 +36,7 @@ async function update(user, { password, name, role }) {
 
 module.exports = {
   login,
-  signup,
+  addUser,
   findByEmail,
   findById,
   listAll,

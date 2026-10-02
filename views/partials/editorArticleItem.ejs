@@ -1,0 +1,14 @@
+<%
+  const statusDisplay = {
+    in_progress: { label: 'In Progress', status_class: 'progress' },
+    pending_approval: { label: 'Pending Approval', status_class: 'pending' },
+    published: { label: 'Published', status_class: 'published' },
+    returned_for_revision: { label: 'Returned for Revision', status_class: 'returned' },
+  };
+  const status = statusDisplay[article.status];
+%>
+<li class="dashboard__item">
+  <span class="dashboard__title"><%= article.title %></span>
+  <span class="dashboard__meta">by <%= article.reporterName %></span>
+  <span class="dashboard__status dashboard__status--<%= status.status_class %>"><%= status.label %></span>
+</li>
