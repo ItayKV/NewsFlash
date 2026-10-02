@@ -3,6 +3,7 @@ const express = require('express');
 const sessionMiddleware = require('./back/config/session');
 const userRoutes = require('./back/routes/userRoutes');
 const articleRoutes = require('./back/routes/articleRoutes');
+const categoryRoutes = require('./back/routes/categoryRoutes');
 const userService = require('./back/services/userService');
 const { HTTP_STATUS } = require('./back/config/constants');
 const { RoleEnum } = require('./back/models/User');
@@ -83,6 +84,7 @@ app.get('/editor/articles', requirePageRole(RoleEnum.EDITOR), (req, res) => {
 
 app.use(userRoutes);
 app.use('/api/articles', articleRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Minimal JSON error handler (malformed JSON -> 400, otherwise 500).
 app.use((err, req, res, next) => {

@@ -3,16 +3,10 @@ const ArticleDraft = require('../models/ArticleDraft');
 const ArticleRevision = require('../models/ArticleRevision');
 const { RoleEnum } = require('../models/User');
 const { HTTP_STATUS } = require('../config/constants');
+const { createHttpError } = require('../utils/httpError');
 const articleValidators = require('../validators/articleValidators');
 
 const { ArticleStatusEnum, ALLOWED_TRANSITIONS } = Article;
-
-/** Builds an Error that carries an HTTP status, so the controller knows what to answer. */
-function createHttpError(status, message) {
-  const err = new Error(message);
-  err.status = status;
-  return err;
-}
 
 const notPermitted = () => createHttpError(HTTP_STATUS.FORBIDDEN, 'Not permitted');
 
