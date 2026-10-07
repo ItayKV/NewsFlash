@@ -76,6 +76,7 @@ the-daily-web/
 │   │   ├── weatherService.js   # Server-side caching (max 15-min stale cache)
 │   │   ├── analyticsService.js
 │   │   └── activityLogger.js   # Server activity log (see 7.9)
+│   ├── validators/             # Input validation helpers, one file per domain (e.g. userValidators.js)
 │   └── views/
 │       ├── components/
 │       │   ├── header.ejs
@@ -177,6 +178,8 @@ Before project defense, the database must contain:
 - **Git Commit Standards:**
   - Small, atomic commits with informative English messages.
   - Feature branches for distinct modules (e.g., `feat/auto-save`, `feat/impact-analytics`).
+  - **Naming:** Never use meaningless or cryptic variable names (e.g. `v`, `x`, `tmp`, `d`). Names must clearly describe what they hold (e.g. `userValidators`, not `v`). Conventional short names like `req`, `res`, `err` are fine.
+
 
   ---
 
