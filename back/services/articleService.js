@@ -105,14 +105,14 @@ async function saveDraft(actor, articleId, content) {
   const startsUpdate = article.status === ArticleStatusEnum.PUBLISHED;
   if (startsUpdate) assertCanChangeStatus(actor, article, ArticleStatusEnum.IN_PROGRESS);
 
-  const contentError = await articleValidators.getContentError(content);
+  const contentError = articleValidators.getContentError(content);
   if (contentError) throw createHttpError(HTTP_STATUS.BAD_REQUEST, contentError);
 
-  // Copy only the known fields that were sent; an empty categoryId clears the category.
+  // Copy only the known fields that were sent; an empty category clears the category.
   const fieldsToSet = {};
   for (const field of articleValidators.CONTENT_FIELDS) {
     if (content[field] === undefined) continue;
-    const isClearedCategory = field === 'categoryId' && articleValidators.isEmpty(content[field]);
+    const isClearedCategory = field === 'category' && articleValidators.isEmpty(content[field]);
     fieldsToSet[`content.${field}`] = isClearedCategory ? null : content[field];
   }
 

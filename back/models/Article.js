@@ -9,6 +9,18 @@ const ArticleStatusEnum = Object.freeze({
   RETURNED_FOR_REVISION: 'returned_for_revision',
 });
 
+// The fixed list of article categories. Used for validation, the feed filter and the seed.
+const ARTICLE_CATEGORIES = Object.freeze([
+  'Politics',
+  'Economy',
+  'Military',
+  'World',
+  'Technology',
+  'Sports',
+  'Culture',
+  'Health',
+]);
+
 // Allowed status changes (CLAUDE.md section 7.1). Any change not listed here is rejected.
 // from: null means "a new article" (any reporter may create one; the creator becomes the author).
 // ownerOnly: only the reporter who owns the article.
@@ -29,7 +41,7 @@ const contentSchema = new mongoose.Schema(
     summary: { type: String, trim: true, default: '' },
     body: { type: String, default: '' },
     imageUrl: { type: String, trim: true, default: '' },
-    categoryId: { type: String, ref: 'Category' }, // Category ids are UUID strings
+    category: { type: String, enum: ARTICLE_CATEGORIES },
   },
   { _id: false }
 );
@@ -57,7 +69,7 @@ articleSchema.index({ 'published.title': 'text', 'published.summary': 'text' });
 // Public feed: articles that have a "published" snapshot (never filtered by status),
 // sorted newest first.
 articleSchema.index({ publishedAt: -1 });
-articleSchema.index({ 'published.categoryId': 1, publishedAt: -1 });
+articleSchema.index({ 'published.category': 1, publishedAt: -1 });
 // Editor queue by status, reporter workspace by author.
 articleSchema.index({ status: 1, updatedAt: -1 });
 articleSchema.index({ author: 1, updatedAt: -1 });
@@ -78,3 +90,4 @@ module.exports = Article;
 module.exports.ArticleStatusEnum = ArticleStatusEnum;
 module.exports.contentSchema = contentSchema;
 module.exports.ALLOWED_TRANSITIONS = ALLOWED_TRANSITIONS;
+module.exports.ARTICLE_CATEGORIES = ARTICLE_CATEGORIES;

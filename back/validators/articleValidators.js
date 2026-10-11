@@ -1,4 +1,4 @@
-const Category = require('../models/Category');
+const { ARTICLE_CATEGORIES } = require('../models/Article');
 
 const TITLE_MAX_LENGTH = 120;
 const SUMMARY_MAX_LENGTH = 500;
@@ -6,7 +6,7 @@ const BODY_MAX_LENGTH = 50000;
 const EDITOR_NOTE_MAX_LENGTH = 1000;
 
 // The content fields a reporter or editor may write. Anything else in the input is ignored.
-const CONTENT_FIELDS = Object.freeze(['title', 'summary', 'body', 'imageUrl', 'categoryId']);
+const CONTENT_FIELDS = Object.freeze(['title', 'summary', 'body', 'imageUrl', 'category']);
 
 const isString = (value) => typeof value === 'string';
 
@@ -36,18 +36,18 @@ function isValidImageUrl(imageUrl) {
   }
 }
 
-// Async: needs a DB lookup. Only strings are looked up, so an object can't be used as a query.
-async function categoryExists(categoryId) {
-  return isString(categoryId) && Boolean(await Category.exists({ _id: categoryId }));
+// One of the fixed ARTICLE_CATEGORIES, matched exactly (case-sensitive).
+function isValidCategory(category) {
+  return isString(category) && ARTICLE_CATEGORIES.includes(category);
 }
 
 /**
  * Checks every content field that was sent (fields that are undefined were not sent).
  * Returns an error message, or null when everything is valid.
  */
-async function getContentError(content) {
+function getContentError(content) {
   if (content == null || typeof content !== 'object' || Array.isArray(content)) return 'Invalid content';
-  const { title, summary, body, imageUrl, categoryId } = content;
+  const { title, summary, body, imageUrl, category } = content;
 
   if (title !== undefined && !isValidTitle(title)) {
     return `Title must be text of up to ${TITLE_MAX_LENGTH} characters`;
@@ -61,8 +61,10 @@ async function getContentError(content) {
   if (imageUrl !== undefined && !isValidImageUrl(imageUrl)) {
     return 'Image URL must be empty or a valid https:// address';
   }
-  // An empty categoryId means "no category"; any other value must be an existing category.
-  if (!isEmpty(categoryId) && !(await categoryExists(categoryId))) return 'Category not found';
+  // An empty category means "no category"; any other value must be one of ARTICLE_CATEGORIES.
+  if (!isEmpty(category) && !isValidCategory(category)) {
+    return `Category must be one of: ${ARTICLE_CATEGORIES.join(', ')}`;
+  }
   return null;
 }
 
@@ -83,7 +85,7 @@ module.exports = {
   isValidSummary,
   isValidBody,
   isValidImageUrl,
-  categoryExists,
+  isValidCategory,
   getContentError,
   getMissingFields,
   isValidEditorNote,
