@@ -1,5 +1,4 @@
 const Article = require('../models/Article');
-const ArticleDraft = require('../models/ArticleDraft');
 const ArticleRevision = require('../models/ArticleRevision');
 const { RoleEnum } = require('../models/User');
 const { HTTP_STATUS } = require('../config/constants');
@@ -23,7 +22,7 @@ async function findArticleOrThrow(articleId) {
 }
 
 /**
- * Throws unless the actor may move the article to toStatus (article = null means "create").
+ * Throws unless the actor may move the article to toStatus.
  * Checked in order: (1) role, (2) ownership for ownerOnly rules, (3) the change exists.
  */
 function assertCanChangeStatus(actor, article, toStatus) {
@@ -35,18 +34,17 @@ function assertCanChangeStatus(actor, article, toStatus) {
   const ownedRules = roleRules.filter((rule) => !rule.ownerOnly || isOwner(actor, article));
   if (ownedRules.length === 0) throw notPermitted();
 
-  const fromStatus = article ? article.status : null;
-  if (!ownedRules.some((rule) => rule.from === fromStatus)) {
+  if (!ownedRules.some((rule) => rule.from === article.status)) {
     throw createHttpError(
       HTTP_STATUS.BAD_REQUEST,
-      `Cannot change status from ${fromStatus || 'new'} to ${toStatus}`
+      `Cannot change status from ${article.status} to ${toStatus}`
     );
   }
 }
 
-/** Throws 400 if a required field of the draft is empty. */
+/** Throws 400 if a required field of the draft is empty (a missing draft counts as empty). */
 function assertDraftComplete(draft) {
-  const missingFields = articleValidators.getMissingFields(draft ? draft.content : null);
+  const missingFields = articleValidators.getMissingFields(draft);
   if (missingFields.length > 0) {
     throw createHttpError(HTTP_STATUS.BAD_REQUEST, `Article is incomplete. Missing: ${missingFields.join(', ')}`);
   }
@@ -61,29 +59,29 @@ async function updateIfStatusUnchanged(article, update) {
     new: true,
     runValidators: true,
   });
-    if (!updated) throw createHttpError(HTTP_STATUS.CONFLICT, 'Article status changed meanwhile, please reload');
+  if (!updated) throw createHttpError(HTTP_STATUS.CONFLICT, 'Article status changed meanwhile, please reload');
   return updated;
 }
 
-/** A reporter starts a new article: the Article itself and its empty draft. */
+/**
+ * A reporter starts a new article; the empty draft comes from the schema default.
+ * Creating an article is not a status change, so it is not in ALLOWED_TRANSITIONS.
+ */
 async function createArticle(actor) {
-  assertCanChangeStatus(actor, null, ArticleStatusEnum.IN_PROGRESS);
-  const article = await Article.create({ author: actor.id, status: ArticleStatusEnum.IN_PROGRESS });
-  const draft = await ArticleDraft.create({ article: article.id });
-  return { article, draft };
+  if (!isReporter(actor)) throw notPermitted();
+  return Article.create({ author: actor.id, status: ArticleStatusEnum.IN_PROGRESS });
 }
 
-/** The owning reporter or any editor opens the article in the editor. */
+/** The owning reporter or any editor opens the article in the editor (the draft is inside it). */
 async function getArticleForEditing(actor, articleId) {
   const article = await findArticleOrThrow(articleId);
   if (!isEditor(actor) && !(isReporter(actor) && isOwner(actor, article))) throw notPermitted();
-  const draft = await ArticleDraft.findOne({ article: article.id });
-  return { article, draft };
+  return article;
 }
 
-/** Auto-save: writes the sent content fields into the draft (creates the draft if missing). */
+/** Auto-save: writes the sent content fields into the article's draft. */
 async function saveDraft(actor, articleId, content) {
-  let article = await findArticleOrThrow(articleId);
+  const article = await findArticleOrThrow(articleId);
 
   // Owning reporter: in_progress, returned_for_revision or published (not while it is being reviewed).
   // Editor: only pending_approval, i.e. while reviewing it.
@@ -108,38 +106,29 @@ async function saveDraft(actor, articleId, content) {
   const contentError = articleValidators.getContentError(content);
   if (contentError) throw createHttpError(HTTP_STATUS.BAD_REQUEST, contentError);
 
-  // Copy only the known fields that were sent; 
+  // Copy only the known fields that were sent;
   // An empty category clears the category (null); a null image URL means "no image" ('').
   const fieldsToSet = {};
-   for (const field of articleValidators.CONTENT_FIELDS) {
-     let value = content[field];
-     if (value === undefined) continue;
-     if (field === 'category' && articleValidators.isEmpty(value)) value = null;
-     if (field === 'imageUrl' && value === null) value = '';
-     fieldsToSet[`content.${field}`] = value;
-    }
-
-  const draft = await ArticleDraft.findOneAndUpdate(
-    { article: article.id },
-    { $set: fieldsToSet },
-    { upsert: true, new: true, runValidators: true }
-  );
-
-  // Status changes only after the draft is saved. "published" stays as is, so readers
-  // keep seeing the old version until an editor approves the new one.
-  if (startsUpdate) {
-    article = await updateIfStatusUnchanged(article, { $set: { status: ArticleStatusEnum.IN_PROGRESS } });
+  for (const field of articleValidators.CONTENT_FIELDS) {
+    let value = content[field];
+    if (value === undefined) continue;
+    if (field === 'category' && articleValidators.isEmpty(value)) value = null;
+    if (field === 'imageUrl' && value === null) value = '';
+    fieldsToSet[`draft.${field}`] = value;
   }
-  return { article, draft };
+
+  // "published" stays as is, so readers keep seeing the old version until an editor approves the new one.
+  if (startsUpdate) fieldsToSet.status = ArticleStatusEnum.IN_PROGRESS;
+
+  // The draft and the status are saved in one update, only if the status is still the one checked above.
+  return updateIfStatusUnchanged(article, { $set: fieldsToSet });
 }
 
 /** The owning reporter sends a complete draft to the editors. */
 async function submitForApproval(actor, articleId) {
   const article = await findArticleOrThrow(articleId);
   assertCanChangeStatus(actor, article, ArticleStatusEnum.PENDING_APPROVAL);
-
-  const draft = await ArticleDraft.findOne({ article: article.id });
-  assertDraftComplete(draft);
+  assertDraftComplete(article.draft);
 
   const fieldsToSet = { status: ArticleStatusEnum.PENDING_APPROVAL };
   // Resubmitting after a return: the old editor note is no longer relevant.
@@ -151,11 +140,9 @@ async function submitForApproval(actor, articleId) {
 async function approveArticle(actor, articleId) {
   const article = await findArticleOrThrow(articleId);
   assertCanChangeStatus(actor, article, ArticleStatusEnum.PUBLISHED);
+  assertDraftComplete(article.draft);
 
-  const draft = await ArticleDraft.findOne({ article: article.id });
-  assertDraftComplete(draft);
-
-  const approvedContent = draft.content.toObject();
+  const approvedContent = article.draft.toObject();
   const now = new Date();
 
   // One update of the Article document.
@@ -185,36 +172,29 @@ async function returnForRevision(actor, articleId, note) {
   });
 }
 
-/** An editor deletes the article together with its draft and all its revisions. */
+/** An editor deletes the article together with all its revisions (the draft is inside the article). */
 async function deleteArticle(actor, articleId) {
   if (!isEditor(actor)) throw notPermitted();
   const article = await findArticleOrThrow(articleId);
 
   // The article goes last: if something fails midway, it still exists and can be deleted again.
   await ArticleRevision.deleteMany({ article: article.id });
-  await ArticleDraft.deleteOne({ article: article.id });
   await Article.deleteOne({ _id: article.id });
 }
 
 // The only Article fields a list needs (no bodies).
-const LIST_FIELDS = 'status published.title publishedAt updatedAt editorNote author';
+const LIST_FIELDS = 'status published.title draft.title publishedAt updatedAt editorNote author';
 
 /**
- * Turns lean articles into list rows. The draft titles of all the articles are fetched in one
- * query, so articles that were never published still have a title to show.
+ * Turns lean articles into list rows. The draft title is included, so articles that were never
+ * published still have a title to show. Lean articles saved before "draft" existed have no draft.
  */
-async function toListItems(articles, includeAuthorName) {
-  const articleIds = articles.map((article) => article._id);
-  const drafts = await ArticleDraft.find({ article: { $in: articleIds } })
-    .select('article content.title')
-    .lean();
-  const draftTitleByArticleId = new Map(drafts.map((draft) => [draft.article, draft.content?.title || '']));
-
+function toListItems(articles, includeAuthorName) {
   return articles.map((article) => {
     const listItem = {
       id: article._id,
       status: article.status,
-      draftTitle: draftTitleByArticleId.get(article._id) || '',
+      draftTitle: article.draft?.title || '',
       publishedTitle: article.published?.title || null, // null = never published
       publishedAt: article.publishedAt || null,
       updatedAt: article.updatedAt,

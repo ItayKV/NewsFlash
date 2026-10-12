@@ -61,6 +61,7 @@ the-daily-web/
 │   ├── models/
 │   │   ├── User.js
 │   │   ├── Article.js
+│   │   ├── ArticleRevision.js  # Approved versions of an article (one per approval, immutable)
 │   │   ├── Comment.js
 │   │   └── ArticleViewLog.js   # High-throughput aggregated analytics model
 │   ├── routes/
@@ -196,7 +197,7 @@ Only the transitions below are allowed. The server must reject any other transit
 | `in_progress` | `pending_approval` | Owning reporter | |
 | `pending_approval` | `published` | Editor | `draft` is copied to `published`; a new entry is added to `revisions` with approval time and approving editor. |
 | `pending_approval` | `returned_for_revision` | Editor | A non-empty editor note is required. Without it, the server rejects the request. |
-| `returned_for_revision` | `pending_approval` | Owning reporter | The current note is cleared from the active view and kept in `editorNotesHistory`. |
+| `returned_for_revision` | `pending_approval` | Owning reporter | The current editor note is cleared (no history of editor notes is kept). |
 | `published` | `in_progress` | Owning reporter | Happens when the reporter starts editing an update. The `published` snapshot stays live. |
 
 - There is **no** transition from `pending_approval` back to `in_progress`, not even by the reporter.
@@ -228,12 +229,11 @@ For every status change request, the server checks, in order:
 If any check fails, return an error with a clear message (403 for permission errors, 400 for invalid transitions or missing note). Never crash.
 
 ### 7.5 Article Model Structure
-- `published`: the approved version shown to the public (title, summary, body, image, category).
-- `draft`: same fields; the version being worked on. All auto-saves write only to `draft`.
+- `published`: the approved version shown to the public (title, summary, body, imageUrl, category).
+- `draft`: same fields; the version being worked on, stored inside the same Article document (there is no separate draft model). All auto-saves write only to `draft`.
 - `status`: the workflow state of the draft.
-- `editorNote`: the current editor note when the article is returned for revision.
-- `editorNotesHistory`: previous editor notes.
-- `revisions`: history of all approved versions, with approval time and approving editor.
+- `editorNote`: the current editor note when the article is returned for revision. A single field; no history of editor notes is kept.
+- `revisions`: history of all approved versions, with approval time and approving editor. Stored in the separate `ArticleRevision` collection (one immutable document per approval), not inside the Article.
 
 **Public display rule:** The feed and the article page show every article that has a `published` snapshot, **regardless of `status`**, and always render content from `published`. Never filter public content by `status`.
 

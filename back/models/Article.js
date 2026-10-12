@@ -22,10 +22,8 @@ const ARTICLE_CATEGORIES = Object.freeze([
 ]);
 
 // Allowed status changes (CLAUDE.md section 7.1). Any change not listed here is rejected.
-// from: null means "a new article" (any reporter may create one; the creator becomes the author).
 // ownerOnly: only the reporter who owns the article.
 const ALLOWED_TRANSITIONS = Object.freeze([
-  Object.freeze({ from: null, to: ArticleStatusEnum.IN_PROGRESS, role: RoleEnum.REPORTER, ownerOnly: false }),
   Object.freeze({ from: ArticleStatusEnum.IN_PROGRESS, to: ArticleStatusEnum.PENDING_APPROVAL, role: RoleEnum.REPORTER, ownerOnly: true }),
   Object.freeze({ from: ArticleStatusEnum.PENDING_APPROVAL, to: ArticleStatusEnum.PUBLISHED, role: RoleEnum.EDITOR, ownerOnly: false }),
   Object.freeze({ from: ArticleStatusEnum.PENDING_APPROVAL, to: ArticleStatusEnum.RETURNED_FOR_REVISION, role: RoleEnum.EDITOR, ownerOnly: false }),
@@ -33,8 +31,8 @@ const ALLOWED_TRANSITIONS = Object.freeze([
   Object.freeze({ from: ArticleStatusEnum.PUBLISHED, to: ArticleStatusEnum.IN_PROGRESS, role: RoleEnum.REPORTER, ownerOnly: true }),
 ]);
 
-// One version of the article's content. Used for "published" here, and reused by
-// ArticleDraft (the working copy) and ArticleRevision (every approved version).
+// One version of the article's content. Used for "published" and "draft" here, and reused by
+// ArticleRevision (every approved version).
 const contentSchema = new mongoose.Schema(
   {
     title: { type: String, trim: true, default: '' },
@@ -58,6 +56,8 @@ const articleSchema = new mongoose.Schema(
     },
     // Empty (undefined) until the first approval. Public pages show only this version.
     published: { type: contentSchema },
+    // The working copy. Auto-save writes only here; readers never see it.
+    draft: { type: contentSchema, default: () => ({}) },
     editorNote: { type: String, trim: true, default: '' },
     publishedAt: { type: Date }, // first publication only
   },
