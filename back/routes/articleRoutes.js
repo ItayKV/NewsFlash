@@ -7,8 +7,8 @@ const { RoleEnum } = require('../models/User');
 const router = express.Router();
 
 router.post('/', requireRole(RoleEnum.REPORTER), controller.createArticle);
-// Defined before the /:id routes so "mine" is never read as an article id.
-router.get('/mine', requireRole(RoleEnum.REPORTER), controller.listReporterArticles);
+// Defined before the /:id routes so "my-articles" is never read as an article id.
+router.get('/my-articles', requireRole(RoleEnum.REPORTER), controller.listReporterArticles);
 router.get('/', requireRole(RoleEnum.EDITOR), controller.listEditorArticles);
 router.get('/:id/edit', requireRole(RoleEnum.REPORTER, RoleEnum.EDITOR), controller.getArticleForEditing);
 router.patch('/:id/draft', requireRole(RoleEnum.REPORTER, RoleEnum.EDITOR), controller.saveDraft);

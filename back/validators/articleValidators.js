@@ -13,27 +13,18 @@ const isString = (value) => typeof value === 'string';
 // True when the value is missing (undefined / null) or an empty / whitespace-only string.
 const isEmpty = (value) => value == null || (isString(value) && value.trim() === '');
 
-function isValidTitle(title) {
-  return isString(title) && title.length <= TITLE_MAX_LENGTH;
+// A string of up to maxLength characters.
+function isTextUpTo(value, maxLength) {
+  return isString(value) && value.length <= maxLength;
 }
 
-function isValidSummary(summary) {
-  return isString(summary) && summary.length <= SUMMARY_MAX_LENGTH;
-}
-
-function isValidBody(body) {
-  return isString(body) && body.length <= BODY_MAX_LENGTH;
-}
-
-// Empty, or a full https:// address (http is not allowed).
+// No image (null, undefined or ''), or a full https:// address (http is not allowed).
 function isValidImageUrl(imageUrl) {
+  if (imageUrl == null) return true;     // null or undefined: no image
   if (!isString(imageUrl)) return false;
-  if (imageUrl.trim() === '') return true;
-  try {
-    return new URL(imageUrl.trim()).protocol === 'https:';
-  } catch {
-    return false; // not a URL at all
-  }
+  const url = imageUrl.trim();
+  if (url === '') return true;           // empty: no image
+  return URL.canParse(url) && new URL(url).protocol === 'https:';
 }
 
 // One of the fixed ARTICLE_CATEGORIES, matched exactly (case-sensitive).
@@ -49,13 +40,13 @@ function getContentError(content) {
   if (content == null || typeof content !== 'object' || Array.isArray(content)) return 'Invalid content';
   const { title, summary, body, imageUrl, category } = content;
 
-  if (title !== undefined && !isValidTitle(title)) {
+  if (title !== undefined && !isTextUpTo(title, TITLE_MAX_LENGTH)) {
     return `Title must be text of up to ${TITLE_MAX_LENGTH} characters`;
   }
-  if (summary !== undefined && !isValidSummary(summary)) {
+  if (summary !== undefined && !isTextUpTo(summary, SUMMARY_MAX_LENGTH)) {
     return `Summary must be text of up to ${SUMMARY_MAX_LENGTH} characters`;
   }
-  if (body !== undefined && !isValidBody(body)) {
+  if (body !== undefined && !isTextUpTo(body, BODY_MAX_LENGTH)) {
     return `Body must be text of up to ${BODY_MAX_LENGTH} characters`;
   }
   if (imageUrl !== undefined && !isValidImageUrl(imageUrl)) {
@@ -81,9 +72,6 @@ module.exports = {
   CONTENT_FIELDS,
   EDITOR_NOTE_MAX_LENGTH,
   isEmpty,
-  isValidTitle,
-  isValidSummary,
-  isValidBody,
   isValidImageUrl,
   isValidCategory,
   getContentError,

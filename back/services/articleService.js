@@ -61,7 +61,7 @@ async function updateIfStatusUnchanged(article, update) {
     new: true,
     runValidators: true,
   });
-  if (!updated) throw createHttpError(HTTP_STATUS.BAD_REQUEST, 'Article status changed meanwhile, please reload');
+    if (!updated) throw createHttpError(HTTP_STATUS.CONFLICT, 'Article status changed meanwhile, please reload');
   return updated;
 }
 
@@ -108,13 +108,16 @@ async function saveDraft(actor, articleId, content) {
   const contentError = articleValidators.getContentError(content);
   if (contentError) throw createHttpError(HTTP_STATUS.BAD_REQUEST, contentError);
 
-  // Copy only the known fields that were sent; an empty category clears the category.
+  // Copy only the known fields that were sent; 
+  // An empty category clears the category (null); a null image URL means "no image" ('').
   const fieldsToSet = {};
-  for (const field of articleValidators.CONTENT_FIELDS) {
-    if (content[field] === undefined) continue;
-    const isClearedCategory = field === 'category' && articleValidators.isEmpty(content[field]);
-    fieldsToSet[`content.${field}`] = isClearedCategory ? null : content[field];
-  }
+   for (const field of articleValidators.CONTENT_FIELDS) {
+     let value = content[field];
+     if (value === undefined) continue;
+     if (field === 'category' && articleValidators.isEmpty(value)) value = null;
+     if (field === 'imageUrl' && value === null) value = '';
+     fieldsToSet[`content.${field}`] = value;
+    }
 
   const draft = await ArticleDraft.findOneAndUpdate(
     { article: article.id },
@@ -235,7 +238,7 @@ async function listEditorArticles(actor, status) {
   if (!isEditor(actor)) throw notPermitted();
 
   const filter = {};
-  if (status != null && status !== '') {
+  if (status) {
     if (!Object.values(ArticleStatusEnum).includes(status)) {
       throw createHttpError(HTTP_STATUS.BAD_REQUEST, 'Invalid status');
     }
