@@ -22,7 +22,8 @@ async function findArticleOrThrow(articleId) {
 
 /**
  * Throws unless the actor may move the article to toStatus.
- * Checked in order: (1) role, (2) ownership for ownerOnly rules, (3) the change exists.
+ * Checked in order: (1) role, (2) ownership for ownerOnly rules, (3) not already in toStatus,
+ * (4) the change exists.
  */
 function assertCanChangeStatus(actor, article, toStatus) {
   const rulesForTarget = ALLOWED_TRANSITIONS.filter((rule) => rule.to === toStatus);
@@ -32,6 +33,11 @@ function assertCanChangeStatus(actor, article, toStatus) {
 
   const ownedRules = roleRules.filter((rule) => !rule.ownerOnly || isOwner(actor, article));
   if (ownedRules.length === 0) throw notPermitted();
+
+  // e.g. "Article is already pending approval" instead of "from pending_approval to pending_approval".
+  if (article.status === toStatus) {
+    throw new ArticleError(ArticleErrorCode.INVALID_TRANSITION, `Article is already ${toStatus.replaceAll('_', ' ')}`);
+  }
 
   if (!ownedRules.some((rule) => rule.from === article.status)) {
     throw new ArticleError(
