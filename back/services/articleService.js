@@ -1,23 +1,22 @@
 const Article = require('../models/Article');
 const ArticleRevision = require('../models/ArticleRevision');
 const { RoleEnum } = require('../models/User');
-const { HTTP_STATUS } = require('../config/constants');
-const { createHttpError } = require('../utils/httpError');
-const articleValidators = require('../validators/articleValidators');
+const { ArticleError, ArticleErrorCode } = require('../utils/ArticleError');
 
-const { ArticleStatusEnum, ALLOWED_TRANSITIONS } = Article;
+// Input is validated by the controller; this service applies the business rules and throws ArticleError.
+const { ArticleStatusEnum, ALLOWED_TRANSITIONS, CONTENT_FIELDS, isEmpty, getMissingFields } = Article;
 
-const notPermitted = () => createHttpError(HTTP_STATUS.FORBIDDEN, 'Not permitted');
+const notPermitted = () => new ArticleError(ArticleErrorCode.NOT_PERMITTED, 'Not permitted');
 
 // The actor is { id, role }, built by the controller from the session.
 const isReporter = (actor) => Boolean(actor && actor.id) && actor.role === RoleEnum.REPORTER;
 const isEditor = (actor) => Boolean(actor && actor.id) && actor.role === RoleEnum.EDITOR;
 const isOwner = (actor, article) => Boolean(actor && article) && article.author === actor.id;
 
-/** Loads the article or throws 404. Ids are UUID strings; anything else can't match. */
+/** Loads the article or throws NOT_FOUND. Ids are UUID strings; anything else can't match. */
 async function findArticleOrThrow(articleId) {
   const article = typeof articleId === 'string' ? await Article.findById(articleId) : null;
-  if (!article) throw createHttpError(HTTP_STATUS.NOT_FOUND, 'Article not found');
+  if (!article) throw new ArticleError(ArticleErrorCode.NOT_FOUND, 'Article not found');
   return article;
 }
 
@@ -35,18 +34,18 @@ function assertCanChangeStatus(actor, article, toStatus) {
   if (ownedRules.length === 0) throw notPermitted();
 
   if (!ownedRules.some((rule) => rule.from === article.status)) {
-    throw createHttpError(
-      HTTP_STATUS.BAD_REQUEST,
+    throw new ArticleError(
+      ArticleErrorCode.INVALID_TRANSITION,
       `Cannot change status from ${article.status} to ${toStatus}`
     );
   }
 }
 
-/** Throws 400 if a required field of the draft is empty (a missing draft counts as empty). */
+/** Throws INCOMPLETE if a required field of the draft is empty (a missing draft counts as empty). */
 function assertDraftComplete(draft) {
-  const missingFields = articleValidators.getMissingFields(draft);
+  const missingFields = getMissingFields(draft);
   if (missingFields.length > 0) {
-    throw createHttpError(HTTP_STATUS.BAD_REQUEST, `Article is incomplete. Missing: ${missingFields.join(', ')}`);
+    throw new ArticleError(ArticleErrorCode.INCOMPLETE, `Article is incomplete. Missing: ${missingFields.join(', ')}`);
   }
 }
 
@@ -59,7 +58,7 @@ async function updateIfStatusUnchanged(article, update) {
     new: true,
     runValidators: true,
   });
-  if (!updated) throw createHttpError(HTTP_STATUS.CONFLICT, 'Article status changed meanwhile, please reload');
+  if (!updated) throw new ArticleError(ArticleErrorCode.STATUS_CHANGED, 'Article status changed meanwhile, please reload');
   return updated;
 }
 
@@ -79,7 +78,7 @@ async function getArticleForEditing(actor, articleId) {
   return article;
 }
 
-/** Auto-save: writes the sent content fields into the article's draft. */
+/** Auto-save: writes the sent content fields (already validated by the controller) into the article's draft. */
 async function saveDraft(actor, articleId, content) {
   const article = await findArticleOrThrow(articleId);
 
@@ -88,11 +87,11 @@ async function saveDraft(actor, articleId, content) {
   if (isReporter(actor)) {
     if (!isOwner(actor, article)) throw notPermitted();
     if (article.status === ArticleStatusEnum.PENDING_APPROVAL) {
-      throw createHttpError(HTTP_STATUS.BAD_REQUEST, 'Cannot edit an article while it is pending approval');
+      throw new ArticleError(ArticleErrorCode.NOT_EDITABLE, 'Cannot edit an article while it is pending approval');
     }
   } else if (isEditor(actor)) {
     if (article.status !== ArticleStatusEnum.PENDING_APPROVAL) {
-      throw createHttpError(HTTP_STATUS.BAD_REQUEST, 'Editors can edit an article only while it is pending approval');
+      throw new ArticleError(ArticleErrorCode.NOT_EDITABLE, 'Editors can edit an article only while it is pending approval');
     }
   } else {
     throw notPermitted();
@@ -103,16 +102,13 @@ async function saveDraft(actor, articleId, content) {
   const startsUpdate = article.status === ArticleStatusEnum.PUBLISHED;
   if (startsUpdate) assertCanChangeStatus(actor, article, ArticleStatusEnum.IN_PROGRESS);
 
-  const contentError = articleValidators.getContentError(content);
-  if (contentError) throw createHttpError(HTTP_STATUS.BAD_REQUEST, contentError);
-
   // Copy only the known fields that were sent;
   // An empty category clears the category (null); a null image URL means "no image" ('').
   const fieldsToSet = {};
-  for (const field of articleValidators.CONTENT_FIELDS) {
+  for (const field of CONTENT_FIELDS) {
     let value = content[field];
     if (value === undefined) continue;
-    if (field === 'category' && articleValidators.isEmpty(value)) value = null;
+    if (field === 'category' && isEmpty(value)) value = null;
     if (field === 'imageUrl' && value === null) value = '';
     fieldsToSet[`draft.${field}`] = value;
   }
@@ -159,14 +155,14 @@ async function approveArticle(actor, articleId) {
   return updated;
 }
 
-/** An editor sends the article back to the reporter with a note explaining what to fix. */
+/**
+ * An editor sends the article back to the reporter with a note explaining what to fix.
+ * The note is already validated by the controller.
+ */
 async function returnForRevision(actor, articleId, note) {
   const article = await findArticleOrThrow(articleId);
   assertCanChangeStatus(actor, article, ArticleStatusEnum.RETURNED_FOR_REVISION);
 
-  if (!articleValidators.isValidEditorNote(note)) {
-    throw createHttpError(HTTP_STATUS.BAD_REQUEST, `A note of up to ${articleValidators.EDITOR_NOTE_MAX_LENGTH} characters is required`);
-  }
   return updateIfStatusUnchanged(article, {
     $set: { status: ArticleStatusEnum.RETURNED_FOR_REVISION, editorNote: note.trim() },
   });
@@ -213,17 +209,15 @@ async function listReporterArticles(actor) {
   return toListItems(articles, false);
 }
 
-/** All articles for the editor (optionally only one status), with the author's name. */
+/**
+ * All articles for the editor (optionally only one status), with the author's name.
+ * The status is already validated by the controller; empty means all statuses.
+ */
 async function listEditorArticles(actor, status) {
   if (!isEditor(actor)) throw notPermitted();
 
   const filter = {};
-  if (status) {
-    if (!Object.values(ArticleStatusEnum).includes(status)) {
-      throw createHttpError(HTTP_STATUS.BAD_REQUEST, 'Invalid status');
-    }
-    filter.status = status;
-  }
+  if (status) filter.status = status;
   const articles = await Article.find(filter)
     .sort({ updatedAt: -1 })
     .select(LIST_FIELDS)

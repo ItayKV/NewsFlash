@@ -77,7 +77,9 @@ the-daily-web/
 │   │   ├── weatherService.js   # Server-side caching (max 15-min stale cache)
 │   │   ├── analyticsService.js
 │   │   └── activityLogger.js   # Server activity log (see 7.9)
-│   ├── validators/             # Input validation helpers, one file per domain (e.g. userValidators.js)
+│   ├── utils/
+│   │   └── ArticleError.js     # Business errors thrown by articleService (a code, no HTTP status)
+│   ├── validators/             # Request input validation used by controllers, one file per domain (e.g. userValidators.js)
 │   └── views/
 │       ├── components/
 │       │   ├── header.ejs
@@ -173,6 +175,10 @@ Before project defense, the database must contain:
 
 - **Assistant Execution Rule:** Strictly follow an incremental, feature-by-feature progression. Never implement unrequested modules or anticipatory code.
 - **Architecture:** Keep business logic inside controllers/services, not route handlers.
+- **Layer Responsibilities:**
+  - **Controllers** validate the request input (body, params, query) with `back/validators/` and return 400 before calling the service. They also turn every error into an HTTP response: each service error code is mapped to a status code in one place in the controller.
+  - **Services** hold the business rules (permissions, ownership, allowed transitions) and know nothing about HTTP: they never read `req`/`res`, never use status codes, and throw errors that carry a code and a message (e.g. `ArticleError` in `back/utils/ArticleError.js`).
+  - **Models** hold the rules about their own data (e.g. `CONTENT_FIELDS` and `getMissingFields` in `Article.js`), so services and validators import them from there.
 - **Async Handling:** Use modern `async/await` with comprehensive `try/catch` or an async wrapper.
 - **Defensive Engineering:** Handle edge cases (empty search results, DB disconnection, rate-limit triggers) gracefully without crashing.
 - **No Unicode Math:** When math notations are needed, strictly use LaTeX format (`$x$` or `$$...$$`).
@@ -227,6 +233,9 @@ For every status change request, the server checks, in order:
 3. Whether the transition appears in the allowed transitions table (7.1).
 
 If any check fails, return an error with a clear message (403 for permission errors, 400 for invalid transitions or missing note). Never crash.
+
+- These checks run in the service, which throws an `ArticleError` with a code (`NOT_PERMITTED`, `INVALID_TRANSITION`, ...); the controller maps the code to the HTTP status.
+- Request input (content fields, the editor note, query parameters) is validated earlier, in the controller, before the service is called.
 
 ### 7.5 Article Model Structure
 - `published`: the approved version shown to the public (title, summary, body, imageUrl, category).

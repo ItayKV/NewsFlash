@@ -44,6 +44,17 @@ const contentSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// The content fields a reporter or editor may write. Anything else in the input is ignored.
+const CONTENT_FIELDS = Object.freeze(['title', 'summary', 'body', 'imageUrl', 'category']);
+
+// True when the value is missing (undefined / null) or an empty / whitespace-only string.
+const isEmpty = (value) => value == null || (typeof value === 'string' && value.trim() === '');
+
+/** Returns the names of the required fields that are empty (an empty list = the content is complete). */
+function getMissingFields(content) {
+  return CONTENT_FIELDS.filter((field) => isEmpty(content ? content[field] : undefined));
+}
+
 const articleSchema = new mongoose.Schema(
   {
     _id: { type: String, default: () => crypto.randomUUID() },
@@ -91,3 +102,6 @@ module.exports.ArticleStatusEnum = ArticleStatusEnum;
 module.exports.contentSchema = contentSchema;
 module.exports.ALLOWED_TRANSITIONS = ALLOWED_TRANSITIONS;
 module.exports.ARTICLE_CATEGORIES = ARTICLE_CATEGORIES;
+module.exports.CONTENT_FIELDS = CONTENT_FIELDS;
+module.exports.isEmpty = isEmpty;
+module.exports.getMissingFields = getMissingFields;
