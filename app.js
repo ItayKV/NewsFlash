@@ -4,7 +4,7 @@ const cookieParser = require('cookie-parser');
 const { visitorAuthenticationMiddleware } = require('./back/middleware/visitorAuthentication');
 const { sessionMiddleware } = require('./back/config/session');
 const userRoutes = require('./back/routes/userRoutes');
-const apiRoutes = require('./back/routes/apiRoutes');
+const weatherRoutes = require('./back/routes/weatherRoutes');
 const userService = require('./back/services/userService');
 const weatherService = require('./back/services/weatherService');
 const { HTTP_STATUS } = require('./back/config/constants');
@@ -79,7 +79,7 @@ app.get('/editor', requirePageRole(RoleEnum.EDITOR), async (req, res, next) => {
 });
 
 app.use(userRoutes);
-app.use(apiRoutes);
+app.use(weatherRoutes);
 
 // Minimal JSON error handler (malformed JSON -> 400, otherwise 500).
 app.use((err, req, res, next) => {

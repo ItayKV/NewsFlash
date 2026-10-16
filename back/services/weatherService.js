@@ -1,7 +1,7 @@
 const CACHE_TTL_MS = 15 * 60 * 1000;
+const RETRY_AFTER_FAILURE_MS = 60 * 1000;
 
 let cachedWeather = null;
-let refreshTimeoutId = null;
 
 async function fetchAndCacheWeather() {
   try {
@@ -23,14 +23,18 @@ async function fetchAndCacheWeather() {
       icon: body.weather[0].icon,
     };
     console.log(`[${new Date().toISOString()}] Weather cache refreshed:`, cachedWeather);
+    return true;
   } catch (err) {
     console.error('Weather refresh failed:', err.message);
+    return false;
   }
 }
 
 async function refreshLoop() {
-  await fetchAndCacheWeather();
-  refreshTimeoutId = setTimeout(refreshLoop, CACHE_TTL_MS).unref();
+  const refreshSucceeded = await fetchAndCacheWeather();
+  const delayMs = refreshSucceeded ? CACHE_TTL_MS : RETRY_AFTER_FAILURE_MS;
+  // unref() so the pending timer never keeps the process alive on shutdown.
+  setTimeout(refreshLoop, delayMs).unref();
 }
 
 /** Returns the cached weather snapshot, or null if none has been fetched successfully yet. */
@@ -38,12 +42,6 @@ function getCurrentWeather() {
   return cachedWeather;
 }
 
-/** Stops the background refresh loop; call on server shutdown to let the process exit cleanly. */
-function stopRefreshLoop() {
-  clearTimeout(refreshTimeoutId);
-  refreshTimeoutId = null;
-}
-
 refreshLoop();
 
-module.exports = { getCurrentWeather, stopRefreshLoop };
+module.exports = { getCurrentWeather };

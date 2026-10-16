@@ -2,7 +2,6 @@ require('dotenv').config();
 
 const app = require('./app');
 const connectDB = require('./back/config/db');
-const weatherService = require('./back/services/weatherService');
 
 const PORT = process.env.PORT || 3000;
 
@@ -14,21 +13,11 @@ process.on('unhandledRejection', (err) => {
   console.error('Unhandled rejection:', err.message || err);
 });
 
-// Stops the weather refresh timer so the process can exit cleanly on shutdown
-// instead of waiting on a pending background refresh.
-function shutdown(exitCode = 0) {
-  weatherService.stopRefreshLoop();
-  process.exit(exitCode);
-}
-process.on('SIGTERM', () => shutdown());
-process.on('SIGINT', () => shutdown());
-
-// An uncaught exception would otherwise crash the process immediately,
-// skipping the cleanup above. Run it here too, with a non-zero exit code
-// so the crash is still reported as a failure.
+// Log an uncaught exception, then exit with a non-zero code so the crash
+// is still reported as a failure.
 process.on('uncaughtException', (err) => {
   console.error('Uncaught exception:', err);
-  shutdown(1);
+  process.exit(1);
 });
 
 // Fire-and-forget: DB connection attempts run in parallel with the
