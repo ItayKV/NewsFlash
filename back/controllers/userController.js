@@ -103,7 +103,7 @@ async function updateUser(req, res, next) {
     if (isSelfUpdate) {
       if (!userValidators.isSafePassword(old_password)) return invalidResponse(res, 'Invalid password');
       if (!(await userService.verifyPassword(user, old_password))) {
-        return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Unauthenticated' });
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: 'Unauthenticated' });
       }
     }
 
