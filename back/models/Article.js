@@ -1,6 +1,8 @@
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const { RoleEnum } = require('./User');
+const userSnapshotSchema = require('./userSnapshotSchema');
+const { ARTICLE_CATEGORIES, contentSchema, CONTENT_FIELDS, isEmpty, getMissingFields } = require('./contentSchema');
 
 const ArticleStatusEnum = Object.freeze({
   IN_PROGRESS: 'in_progress',
@@ -8,18 +10,6 @@ const ArticleStatusEnum = Object.freeze({
   PUBLISHED: 'published',
   RETURNED_FOR_REVISION: 'returned_for_revision',
 });
-
-// The fixed list of article categories. Used for validation, the feed filter and the seed.
-const ARTICLE_CATEGORIES = Object.freeze([
-  'Politics',
-  'Economy',
-  'Military',
-  'World',
-  'Technology',
-  'Sports',
-  'Culture',
-  'Health',
-]);
 
 // Allowed status changes (CLAUDE.md section 7.1). Any change not listed here is rejected.
 // ownerOnly: only the reporter who owns the article.
@@ -31,59 +21,34 @@ const ALLOWED_TRANSITIONS = Object.freeze([
   Object.freeze({ from: ArticleStatusEnum.PUBLISHED, to: ArticleStatusEnum.IN_PROGRESS, role: RoleEnum.REPORTER, ownerOnly: true }),
 ]);
 
-// One version of the article's content. Used for "published" and "draft" here, and reused by
-// ArticleRevision (every approved version).
-const contentSchema = new mongoose.Schema(
-  {
-    title: { type: String, trim: true, default: '' },
-    summary: { type: String, trim: true, default: '' },
-    body: { type: String, default: '' },
-    imageUrl: { type: String, trim: true, default: '' },
-    category: { type: String, enum: ARTICLE_CATEGORIES },
-  },
-  { _id: false }
-);
-
-// The content fields a reporter or editor may write. Anything else in the input is ignored.
-const CONTENT_FIELDS = Object.freeze(['title', 'summary', 'body', 'imageUrl', 'category']);
-
-// True when the value is missing (undefined / null) or an empty / whitespace-only string.
-const isEmpty = (value) => value == null || (typeof value === 'string' && value.trim() === '');
-
-/** Returns the names of the required fields that are empty (an empty list = the content is complete). */
-function getMissingFields(content) {
-  return CONTENT_FIELDS.filter((field) => isEmpty(content ? content[field] : undefined));
-}
-
 const articleSchema = new mongoose.Schema(
   {
     _id: { type: String, default: () => crypto.randomUUID() },
-    author: { type: String, ref: 'User', required: true, immutable: true }, // owner never changes
+    author: { type: userSnapshotSchema, required: true, immutable: true }, // the owner { id, name }; never changes
     status: {
       type: String,
       enum: Object.values(ArticleStatusEnum),
       default: ArticleStatusEnum.IN_PROGRESS,
       required: true,
     },
-    // Empty (undefined) until the first approval. Public pages show only this version.
-    published: { type: contentSchema },
-    // The working copy. Auto-save writes only here; readers never see it.
-    draft: { type: contentSchema, default: () => ({}) },
-    editorNote: { type: String, trim: true, default: '' },
+    // The live version: a copy of the latest published revision. Empty (undefined) until the first approval.
+    // Public pages show only this. The working draft is an ArticleRevision with publishedAt = null.
+    content: { type: contentSchema },
+    editorNotes: { type: [{ type: String, trim: true }], default: [] }, // the editor's feedback points of the current return
     publishedAt: { type: Date }, // first publication only
   },
   { timestamps: { createdAt: false } }
 );
 
 // Search over the public version only.
-articleSchema.index({ 'published.title': 'text', 'published.summary': 'text' });
-// Public feed: articles that have a "published" snapshot (never filtered by status),
+articleSchema.index({ 'content.title': 'text', 'content.summary': 'text' });
+// Public feed: articles that have live content (never filtered by status),
 // sorted newest first.
 articleSchema.index({ publishedAt: -1 });
-articleSchema.index({ 'published.category': 1, publishedAt: -1 });
+articleSchema.index({ 'content.category': 1, publishedAt: -1 });
 // Editor queue by status, reporter workspace by author.
 articleSchema.index({ status: 1, updatedAt: -1 });
-articleSchema.index({ author: 1, updatedAt: -1 });
+articleSchema.index({ 'author.id': 1, updatedAt: -1 });
 
 // Expose _id as id.
 articleSchema.set('toJSON', {
