@@ -89,16 +89,22 @@ async function deleteUser(req, res, next) {
 async function updateUser(req, res, next) {
   try {
     const { old_password, new_password, name, role } = req.body || {};
-    if (!userValidators.isSafePassword(old_password)) return invalidResponse(res, 'Invalid password');
+    const isSelfUpdate = req.session.userId === req.params.user_id;
 
-    if (role != null && req.session.userId === req.params.user_id) {
+    if (isSelfUpdate && role != null) {
       return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Cannot change your own role' });
     }
 
-    // Authenticate first; a missing user and a wrong password look the same.
     const user = await userService.findById(req.params.user_id);
-    if (!user || !(await userService.verifyPassword(user, old_password))) {
-      return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Unauthenticated' });
+    if (!user) return res.status(HTTP_STATUS.NOT_FOUND).json({ error: 'User not found' });
+
+    // Users must prove they know their current password; an editor updating
+    // someone else is already authorized by the route's role check.
+    if (isSelfUpdate) {
+      if (!userValidators.isSafePassword(old_password)) return invalidResponse(res, 'Invalid password');
+      if (!(await userService.verifyPassword(user, old_password))) {
+        return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Unauthenticated' });
+      }
     }
 
     if (new_password != null && !userValidators.isValidPassword(new_password)) {
@@ -108,7 +114,7 @@ async function updateUser(req, res, next) {
     if (role != null && !userValidators.isValidRole(role)) return invalidResponse(res, 'Invalid role');
 
     const roleChanged = role != null && role !== user.role;
-    const passwordChangedByOther = new_password != null && req.session.userId !== user.id;
+    const passwordChangedByOther = new_password != null && !isSelfUpdate;
 
     const updated = await userService.update(user, {
       password: new_password,
