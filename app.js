@@ -1,6 +1,8 @@
 const path = require('path');
 const express = require('express');
-const sessionMiddleware = require('./back/config/session');
+const cookieParser = require('cookie-parser');
+const { visitorAuthenticationMiddleware } = require('./back/middleware/visitorAuthentication');
+const { sessionMiddleware } = require('./back/config/session');
 const userRoutes = require('./back/routes/userRoutes');
 const userService = require('./back/services/userService');
 const { HTTP_STATUS } = require('./back/config/constants');
@@ -14,6 +16,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(sessionMiddleware);
+app.use(cookieParser(process.env.COOKIE_SECRET));
+app.use(visitorAuthenticationMiddleware);
 
 // Makes the logged-in user's identity/role, and the role enum, available to
 // every EJS view (e.g. the header) without every render() call passing it.
