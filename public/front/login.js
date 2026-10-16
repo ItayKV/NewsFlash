@@ -3,33 +3,42 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!form) return;
 
   const errorMessage = document.getElementById('login-error');
+  const submitButton = form.querySelector('button[type="submit"]');
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     errorMessage.textContent = '';
+    // Disabled while the request runs so a double click cannot send two logins.
+    submitButton.disabled = true;
 
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
+    try {
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
 
-    const response = await fetch('/users/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+      const response = await fetch('/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (response.ok) {
-      const user = await response.json();
-      if (user.role === window.RoleEnum.REPORTER) {
-        window.location.href = '/reporter';
-      } else if (user.role === window.RoleEnum.EDITOR) {
-        window.location.href = '/editor';
-      } else {
-        window.location.href = '/';
+      if (response.ok) {
+        const user = await response.json();
+        if (user.role === window.RoleEnum.REPORTER) {
+          window.location.href = '/reporter';
+        } else if (user.role === window.RoleEnum.EDITOR) {
+          window.location.href = '/editor';
+        } else {
+          window.location.href = '/';
+        }
+        return;
       }
-      return;
-    }
 
-    const data = await response.json().catch(() => ({}));
-    errorMessage.textContent = data.error || 'Login failed';
+      const data = await response.json().catch(() => ({}));
+      errorMessage.textContent = data.error || 'Login failed';
+    } catch (err) {
+      errorMessage.textContent = 'Could not reach the server. Please try again.';
+    } finally {
+      submitButton.disabled = false;
+    }
   });
 });

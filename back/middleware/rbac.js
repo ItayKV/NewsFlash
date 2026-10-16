@@ -23,6 +23,19 @@ function requireRole(...allowedRoles) {
 }
 
 /**
+ * Page-route version of requireRole for a single role: sends guests to
+ * /login and wrong-role users to /, without exposing the page markup to
+ * either. (API routes use requireRole, which returns JSON errors instead.)
+ */
+function requirePageRole(role) {
+  return function (req, res, next) {
+    if (!req.session.userId) return res.redirect('/login');
+    if (req.session.role !== role) return res.redirect('/');
+    next();
+  };
+}
+
+/**
  * Restricts a route to the user identified by req.params[paramName]
  * accessing their own resource, or to a logged-in user whose session
  * role is one of `allowedRoles`.
@@ -38,4 +51,4 @@ function requireSelfOrRole(paramName, ...allowedRoles) {
   };
 }
 
-module.exports = { requireRole, requireSelfOrRole, RoleEnum };
+module.exports = { requireRole, requirePageRole, requireSelfOrRole, RoleEnum };
