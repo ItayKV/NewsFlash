@@ -242,6 +242,7 @@ This structure also supports: the editor's comparison view (`published` vs `draf
 ### 7.6 View Counting
 - Views are counted as **unique views**: each visitor is counted once per article (identified by a visitor cookie). Page refreshes by the same visitor are ignored.
 - Rationale (for the project defense): prevents repeated refreshes from inflating the statistics, so the chart reflects real readers.
+- The visitor cookie (`visitorId`) is signed, `httpOnly`, `sameSite=lax`, with a 7-day `maxAge` refreshed on each visit. Login session: 12 hours (absolute).
 
 ### 7.7 CRUD Endpoints
 - The server must expose CRUD (Create, Read, Update, Delete) REST endpoints for the **User**, **Article**, **Comment** and **View** (`ArticleViewLog`) models.
@@ -252,7 +253,7 @@ This structure also supports: the editor's comparison view (`published` vs `draf
   1. **Per client:** 3 comments per minute.
   2. **Per IP address:** a higher limit (configurable, default 20 comments per minute). It stops abuse by clearing cookies, while several users behind the same LAN/NAT (one shared IP) are not blocked because of each other.
 - Per-client key: the logged-in user's ID from the session; for guests, the visitor cookie (the same signed, `httpOnly` cookie used in 7.6).
-- A guest with no visitor cookie gets one before the comment is accepted. An invalid (tampered) cookie is rejected.
+- A guest with no visitor cookie gets one before the comment is accepted. An invalid (tampered) cookie is treated like a missing one: the visitor gets a new ID.
 
 ### 7.9 Server Activity Logging
 - Implemented in `back/services/activityLogger.js`, called from controllers/services.
