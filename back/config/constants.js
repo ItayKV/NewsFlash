@@ -13,6 +13,6 @@ const MONGO_DUPLICATE_KEY_ERROR = 11000;
 
 // Anonymous visitor identity cookie (see CLAUDE.md 7.6).
 const VISITOR_COOKIE_NAME = 'visitorId';
-const VISITOR_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const VISITOR_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;  // 1 week
 
 module.exports = { HTTP_STATUS, MONGO_DUPLICATE_KEY_ERROR, VISITOR_COOKIE_NAME, VISITOR_COOKIE_MAX_AGE_MS };
