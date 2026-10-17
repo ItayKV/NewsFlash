@@ -10,6 +10,7 @@
   <%- include('../components/header') %>
   <main class="dashboard">
     <h1>Hello <%= reporterName %>!</h1>
+    <button type="button" class="dashboard__action" id="new-article-button">New article</button>
     <h4 class="dashboard__subtitle">Here are your articles' status:</h4>
     <ul class="dashboard__list" id="reporter-articles"></ul>
     <p class="dashboard__message" id="reporter-articles-status" role="status">Loading…</p>

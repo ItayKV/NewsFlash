@@ -1,0 +1,77 @@
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.edit-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.edit-form__field input,
+.edit-form__field textarea,
+.edit-form__field select {
+  font: inherit;
+  font-weight: 400;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #fff;
+}
+
+.edit-form__field textarea {
+  resize: vertical;
+}
+
+.edit-form__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.edit-form__state {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.edit-form__state--error {
+  color: var(--color-accent);
+}
+
+.edit-form__submit {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.6rem 1.25rem;
+  border: none;
+  border-radius: 6px;
+  background-color: var(--color-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.edit-form__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.edit-notes {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  background-color: #fde3e3;
+}
+
+.edit-notes__title {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: var(--color-accent);
+}
+
+.edit-notes ul {
+  padding-left: 1.25rem;
+}

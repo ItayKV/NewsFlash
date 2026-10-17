@@ -203,7 +203,9 @@ async function saveDraft(req, res, next) {
     const article = await articleService.findArticleById(req.params.id);
     if (!article) return sendError(res, articleNotFound());
 
-    if (article.status !== ArticleStatusEnum.IN_PROGRESS) {
+    const canSave =
+      article.status === ArticleStatusEnum.IN_PROGRESS || article.status === ArticleStatusEnum.RETURNED_FOR_REVISION;
+    if (!canSave) {
       return sendError(res, invalidRequest(`Cannot save changes to an article that is ${presentableStatus(article.status)}`));
     }
 

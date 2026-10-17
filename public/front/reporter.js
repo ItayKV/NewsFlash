@@ -3,6 +3,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   const list = document.getElementById('reporter-articles');
   const status = document.getElementById('reporter-articles-status');
 
+  document.getElementById('new-article-button').addEventListener('click', () => {
+    window.location.href = '/reporter/articles/new';
+  });
+
   try {
     const response = await fetch('/reporter/articles');
     if (!response.ok) throw new Error(`Request failed (${response.status})`);

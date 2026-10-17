@@ -1,5 +1,7 @@
 const userService = require('../../back/services/userService');
 const articleController = require('../../back/controllers/articleController');
+const articleValidators = require('../../back/validators/articleValidators');
+const { ARTICLE_CATEGORIES } = require('../../back/models/Article');
 const { HTTP_STATUS } = require('../../back/config/constants');
 
 /** The reporter's workspace. Their articles are loaded by the page from GET /reporter/articles. */
@@ -10,6 +12,26 @@ async function renderReporterPage(req, res, next) {
   } catch (err) {
     next(err);
   }
+}
+
+/**
+ * The edit screen for a new article (no id in the URL) or an existing one. It is a shell: the article is loaded
+ * by the page from the API, whose guards enforce ownership and status.
+ */
+function renderEditArticlePage(req, res) {
+  const articleId = req.params.id || null;
+  if (articleId && !articleValidators.isValidArticleId(articleId)) return res.redirect('/reporter');
+
+  res.render('pages/editArticle', {
+    articleId,
+    formDisabled: Boolean(articleId), // an existing article's form stays disabled until the page has loaded it
+    categories: ARTICLE_CATEGORIES,
+    limits: {
+      title: articleValidators.TITLE_MAX_LENGTH,
+      summary: articleValidators.SUMMARY_MAX_LENGTH,
+      body: articleValidators.BODY_MAX_LENGTH,
+    },
+  });
 }
 
 /**
@@ -33,4 +55,4 @@ async function renderReporterArticles(req, res, next) {
   await articleController.listReporterArticles(req, apiResponse, next);
 }
 
-module.exports = { renderReporterPage, renderReporterArticles };
+module.exports = { renderReporterPage, renderEditArticlePage, renderReporterArticles };
