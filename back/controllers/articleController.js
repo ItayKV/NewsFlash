@@ -95,6 +95,39 @@ async function sendArticlePage(res, filter, pagination, includeAuthorName) {
   });
 }
 
+/** Turns lean articles into feed cards. Always the live content, whatever the status. */
+function serializeArticles(articles) {
+  return articles.map((article) => ({
+    id: article._id,
+    title: article.content.title,
+    summary: article.content.summary,
+    imageUrl: article.content.imageUrl,
+    category: article.content.category,
+    authorName: article.author?.name || null,
+    publishedAt: article.publishedAt,
+  }));
+}
+
+/** The public feed (one page): published articles, newest publication first. Open to everyone. */
+async function listPublicArticles(req, res, next) {
+  try {
+    const pagination = articleValidators.parsePagination(req.query);
+    if (pagination.error) return sendError(res, invalidRequest(pagination.error));
+
+    const { articles, total } = await articleService.findPublicArticlePage(pagination);
+
+    res.status(HTTP_STATUS.OK).json({
+      items: serializeArticles(articles),
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+      totalPages: Math.ceil(total / pagination.limit),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 /** A reporter creates a new article with its first (empty) draft. */
 async function createArticle(req, res, next) {
   try {
@@ -299,6 +332,7 @@ async function deleteArticle(req, res, next) {
 }
 
 module.exports = {
+  listPublicArticles,
   createArticle,
   listReporterArticles,
   listEditorArticles,

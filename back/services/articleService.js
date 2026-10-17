@@ -146,16 +146,34 @@ async function deleteArticleWithRevisions(articleId) {
 // The Article fields a list needs (no bodies).
 const LIST_FIELDS = 'status content.title publishedAt updatedAt editorNotes author';
 
-/** One page of articles matching the filter, newest change first, and the total count. */
-async function findArticlePage(filter, { page, limit }) {
+/**
+ * One page of articles matching the filter, and the total count. Newest change first and the list fields,
+ * unless another sort or field selection is given.
+ */
+async function findArticlePage(
+  filter,
+  { page, limit },
+  { sort = { updatedAt: -1 }, fields = LIST_FIELDS } = {}
+) {
   const query = Article.find(filter)
-    .sort({ updatedAt: -1, _id: -1 }) // _id makes the order stable between pages
+    .sort({ ...sort, _id: -1 }) // _id makes the order stable between pages
     .skip((page - 1) * limit)
     .limit(limit)
-    .select(LIST_FIELDS);
+    .select(fields);
 
   const [articles, total] = await Promise.all([query.lean(), Article.countDocuments(filter)]);
   return { articles, total };
+}
+
+// The Article fields a public feed card needs.
+const FEED_FIELDS = 'content.title content.summary content.imageUrl content.category author publishedAt';
+
+// An article is public once it was published for the first time (publishedAt is set with its first approval).
+const PUBLIC_FILTER = Object.freeze({ publishedAt: { $ne: null } });
+
+/** One page of the public articles, newest publication first, and the total count. */
+function findPublicArticlePage(pagination) {
+  return findArticlePage(PUBLIC_FILTER, pagination, { sort: { publishedAt: -1 }, fields: FEED_FIELDS });
 }
 
 module.exports = {
@@ -171,4 +189,5 @@ module.exports = {
   publishDraftRevision,
   deleteArticleWithRevisions,
   findArticlePage,
+  findPublicArticlePage,
 };
