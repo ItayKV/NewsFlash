@@ -1,0 +1,20 @@
+<article class="article-card">
+  <% if (article.imageUrl) { %>
+    <img class="article-card__image" src="<%= article.imageUrl %>" alt="" loading="lazy">
+  <% } %>
+  <div class="article-card__body">
+    <% if (article.category) { %>
+      <span class="article-card__category"><%= article.category %></span>
+    <% } %>
+    <h2 class="article-card__title">
+      <a href="/articles/<%= article.id %>"><%= article.title %></a>
+    </h2>
+    <p class="article-card__summary"><%= article.summary %></p>
+    <p class="article-card__meta">
+      <% if (article.authorName) { %><span><%= article.authorName %></span> · <% } %>
+      <time datetime="<%= new Date(article.publishedAt).toISOString() %>">
+        <%= new Date(article.publishedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) %>
+      </time>
+    </p>
+  </div>
+</article>

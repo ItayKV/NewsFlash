@@ -5,12 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Daily Web</title>
   <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/feed.css">
 </head>
 <body>
   <%- include('../components/header') %>
-  <main class="landing">
-    <h1>Home Component</h1>
-    <p class="tagline">News, as it happens.</p>
+  <main>
+    <%- include('../components/feed', { articles, hasMore }) %>
   </main>
+  <script src="/front/feed.js" defer></script>
 </body>
 </html>

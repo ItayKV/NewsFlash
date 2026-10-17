@@ -1,0 +1,9 @@
+<section class="feed" id="feed" data-next-page="2" data-has-more="<%= hasMore %>">
+  <div class="feed__articles" id="feed-articles">
+    <%- include('../partials/feedPage', { articles }) %>
+  </div>
+  <p class="feed__status" id="feed-status" role="status">
+    <% if (articles.length === 0) { %>No articles yet.<% } %>
+  </p>
+  <div id="feed-sentinel"></div>
+</section>
