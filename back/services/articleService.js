@@ -165,6 +165,14 @@ async function findArticlePage(
   return { articles, total };
 }
 
+// The Article fields an author's list row needs (the status and the published title).
+const AUTHOR_LIST_FIELDS = 'status content.title';
+
+/** One page of the author's own articles, newest change first, and the total count. */
+function findAuthorArticles(authorId, pagination) {
+  return findArticlePage({ 'author.id': authorId }, pagination, { fields: AUTHOR_LIST_FIELDS });
+}
+
 // The Article fields a public feed card needs.
 const FEED_FIELDS = 'content.title content.summary content.imageUrl content.category author publishedAt';
 
@@ -211,5 +219,6 @@ module.exports = {
   publishDraftRevision,
   deleteArticleWithRevisions,
   findArticlePage,
+  findAuthorArticles,
   findPublicArticlePage,
 };
