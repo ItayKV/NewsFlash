@@ -2,6 +2,7 @@ const articleService = require('../services/articleService');
 const { HTTP_STATUS } = require('../config/constants');
 const articleValidators = require('../validators/articleValidators');
 const { presentableStatus } = require('../utils/articleUtils');
+const { serializeArticles } = require('../serializers/articleSerializers');
 const { RoleEnum } = require('../models/User');
 const { ArticleStatusEnum, CONTENT_FIELDS, isEmpty, getMissingFields } = require('../models/Article');
 
@@ -93,19 +94,6 @@ async function sendArticlePage(res, filter, pagination, includeAuthorName) {
     total,
     totalPages: Math.ceil(total / pagination.limit),
   });
-}
-
-/** Turns lean articles into feed cards. Always the live content, whatever the status. */
-function serializeArticles(articles) {
-  return articles.map((article) => ({
-    id: article._id,
-    title: article.content.title,
-    summary: article.content.summary,
-    imageUrl: article.content.imageUrl,
-    category: article.content.category,
-    authorName: article.author?.name || null,
-    publishedAt: article.publishedAt,
-  }));
 }
 
 /** The public feed (one page): published articles, newest publication first. Open to everyone. */

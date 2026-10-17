@@ -3,6 +3,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const { visitorAuthenticationMiddleware } = require('./back/middleware/visitorAuthentication');
 const { sessionMiddleware } = require('./back/config/session');
+const viewRoutes = require('./front/routes/viewRoutes');
 const userRoutes = require('./back/routes/userRoutes');
 const articleRoutes = require('./back/routes/articleRoutes');
 const userService = require('./back/services/userService');
@@ -27,10 +28,6 @@ app.use((req, res, next) => {
   res.locals.currentUser = req.session.userId ? { id: req.session.userId, role: req.session.role } : null;
   res.locals.RoleEnum = RoleEnum;
   next();
-});
-
-app.get('/', (req, res) => {
-  res.render('pages/home');
 });
 
 app.get('/login', (req, res) => {
@@ -76,6 +73,7 @@ app.get('/editor', requirePageRole(RoleEnum.EDITOR), async (req, res, next) => {
   }
 });
 
+app.use(viewRoutes);
 app.use(userRoutes);
 app.use('/api/articles', articleRoutes);
 
