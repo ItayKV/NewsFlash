@@ -79,9 +79,12 @@ app.get('/editor', requirePageRole(RoleEnum.EDITOR), async (req, res, next) => {
 app.use(userRoutes);
 app.use('/api/articles', articleRoutes);
 
-// Minimal JSON error handler (malformed JSON -> 400, otherwise 500).
+// Minimal JSON error handler. Malformed JSON -> 400. Other request errors raised by Express and its middleware
+// (a bad URL, a too large body, an unsupported charset or encoding) already carry their own 4xx status: it is
+// kept (CLAUDE.md section 6, avoid 500). Anything else is a real failure -> 500.
 app.use((err, req, res, next) => {
   if (err.type === 'entity.parse.failed') return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: 'Invalid JSON' });
+  if (err.status >= 400 && err.status < 500) return res.status(err.status).json({ error: err.message });
   console.error(err);
   res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
 });

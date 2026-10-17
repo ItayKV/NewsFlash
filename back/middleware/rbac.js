@@ -52,12 +52,7 @@ function requireSelfOrRole(paramName, ...allowedRoles) {
   };
 }
 
-/**
- * Restricts an article route to the article's author (the reporter who created it), or to a logged-in user
- * whose session role is one of `allowedRoles`. The article's id is the route's `:id` param. When there is
- * no such article only the allowed roles pass, so a non-owner can't tell a missing article from someone
- * else's.
- */
+/** Restricts an article route (`:id`) to the article's author, or to a user with one of `allowedRoles`. */
 function requireOwnerOrRole(...allowedRoles) {
   return async function (req, res, next) {
     if (rejectIfUnauthenticated(req, res)) return;

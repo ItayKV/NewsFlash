@@ -5,16 +5,10 @@ const { presentableStatus } = require('../utils/articleUtils');
 const { RoleEnum } = require('../models/User');
 const { ArticleStatusEnum, CONTENT_FIELDS, isEmpty, getMissingFields } = require('../models/Article');
 
-// The controller validates the input, applies the business rules and builds the responses; the service only
-// reads and writes the database. Expected failures are returned as { status, message } (never thrown, see
-// CLAUDE.md section 6); only unexpected errors reach the catch blocks, which pass them to the error handler.
-
-// The login and the allowed roles of each route are enforced by the route guards (requireRole), so the
-// handlers do not check them again. They check what the guards can't know: who owns the article and what
-// each role may do with it.
-// The logged-in user is req.session ({ userId, role }), set at login.
+// The controller validates the input and applies the business rules; the service only talks to the database.
+// Expected failures are returned as { status, message }, not thrown. The route guards already check the login
+// and the allowed roles (reporter or editor for edit, save and submit).
 const isEditor = (session) => session.role === RoleEnum.EDITOR;
-const isOwner = (session, article) => article.author?.id === session.userId;
 
 const httpError = (status, message) => ({ status, message });
 const invalidRequest = (message) => httpError(HTTP_STATUS.BAD_REQUEST, message);
@@ -24,61 +18,35 @@ const statusChanged = () => httpError(HTTP_STATUS.CONFLICT, 'Article status chan
 
 const sendError = (res, error) => res.status(error.status).json({ error: error.message });
 
-/**
- * The article's data breaks a rule of CLAUDE.md 7.5 (an unpublished article without a draft, a published one
- * without content). The client gets a 409 (never a 500, see section 6) and the problem is logged.
- */
+/** A published article without content: broken data. 409, and logged. */
 function brokenArticle(article, problem) {
   console.error(`Article ${article.id} (${article.status}) ${problem}`);
   return httpError(HTTP_STATUS.CONFLICT, 'The article data is inconsistent');
 }
 
-/** An unpublished article without its draft revision (broken data): 404, and logged. */
+/** An unpublished article without a draft: broken data. 404, and logged. */
 function draftMissing(article) {
   console.error(`Article ${article.id} (${article.status}) has no draft revision`);
   return articleNotFound('Draft revision not found');
 }
 
-/** The article as sent to the client: the Article document plus its draft content (null when there is no draft). */
+/** The article plus its draft content (null when there is no draft). */
 function toArticleResponse(article, draftRevision) {
   return { ...article.toJSON(), draft: draftRevision ? draftRevision.content.toObject() : null };
 }
 
-/**
- * Returns the error if the logged-in user may not save changes into the article's draft in its current status,
- * or null when allowed. The route allows reporters and editors, so the user is one of them.
- * Owning reporter: in_progress or returned_for_revision (not while it is being reviewed, and a published
- * article has no draft until the reporter starts editing it).
- * Editor: only pending_approval, i.e. while reviewing it.
- */
-function getEditError(session, article) {
-  if (isEditor(session)) {
-    if (article.status !== ArticleStatusEnum.PENDING_APPROVAL) {
-      return invalidRequest('Editors can edit an article only while it is pending approval');
-    }
-    return null;
-  }
-
-  if (!isOwner(session, article)) return notPermitted();
-  if (article.status === ArticleStatusEnum.PENDING_APPROVAL) {
-    return invalidRequest('Cannot edit an article while it is pending approval');
-  }
-  if (article.status === ArticleStatusEnum.PUBLISHED) {
-    return invalidRequest('Start editing the article before saving changes');
-  }
-  return null;
-}
-
-/** Returns the error if a required field of the draft content is empty, or null when it is complete. */
+/** The error if a required field of the draft content is empty, or null when it is complete. */
 function getIncompleteContentError(draftContent) {
   const missingFields = getMissingFields(draftContent);
   if (missingFields.length === 0) return null;
   return invalidRequest(`Article is incomplete. Missing: ${missingFields.join(', ')}`);
 }
 
+const TRIMMED_FIELDS = ['title', 'summary', 'imageUrl'];
+
 /**
- * The content fields to change: only the known ones that were sent (already validated).
- * An empty category clears the category (null); a null image URL means "no image" ('').
+ * The content fields to change: only the known ones that were sent (already validated), as they are stored.
+ * An empty category is null; a null image URL is ''.
  */
 function toContentChanges(content) {
   const contentChanges = {};
@@ -87,12 +55,18 @@ function toContentChanges(content) {
     if (value === undefined) continue;
     if (field === 'category' && isEmpty(value)) value = null;
     if (field === 'imageUrl' && value === null) value = '';
+    if (TRIMMED_FIELDS.includes(field) && typeof value === 'string') value = value.trim();
     contentChanges[field] = value;
   }
   return contentChanges;
 }
 
-/** Turns lean articles into list rows. The title shown is the published one (null = never published). */
+/** True when any of the changes differs from the draft's current content. */
+function hasContentChanges(draftContent, contentChanges) {
+  return Object.entries(contentChanges).some(([field, value]) => (draftContent[field] ?? null) !== value);
+}
+
+/** Turns lean articles into list rows. The title is the published one (null = never published). */
 function toListItems(articles, includeAuthorName) {
   return articles.map((article) => {
     const listItem = {
@@ -103,7 +77,6 @@ function toListItems(articles, includeAuthorName) {
       updatedAt: article.updatedAt,
       editorNotes: article.editorNotes || [],
     };
-    // The author's name as it was when the article was created (stored on the article, no User lookup).
     if (includeAuthorName) listItem.authorName = article.author?.name || null;
     return listItem;
   });
@@ -122,10 +95,7 @@ async function sendArticlePage(res, filter, pagination, includeAuthorName) {
   });
 }
 
-/**
- * A reporter starts a new article together with its first (empty) draft.
- * Creating an article is not a status change, so it is not in ALLOWED_TRANSITIONS.
- */
+/** A reporter creates a new article with its first (empty) draft. */
 async function createArticle(req, res, next) {
   try {
     const author = await articleService.findUserSnapshot(req.session.userId);
@@ -150,11 +120,10 @@ async function listReporterArticles(req, res, next) {
   }
 }
 
-/** All articles for the editor (optionally only one status, one page), with the author's name. */
+/** All articles for the editor (optionally one status, one page), with the author's name. */
 async function listEditorArticles(req, res, next) {
   try {
     const { status } = req.query;
-    // No status (or an empty one) means all statuses.
     if (status && !articleValidators.isValidStatus(status)) return sendError(res, invalidRequest('Invalid status'));
 
     const pagination = articleValidators.parsePagination(req.query);
@@ -168,25 +137,22 @@ async function listEditorArticles(req, res, next) {
 }
 
 /**
- * The owning reporter starts editing the article and gets it back with its draft. The route guard already
- * allows only the author. The only status that can't be edited is pending_approval, which locks the reporter
- * while an editor reviews it. An article that has a draft is simply returned. One that has none is a
- * published article: the reporter starts an update (published -> in_progress) and a new draft is created as
- * a copy of the live content; readers keep seeing the live content until an editor approves.
+ * Starts editing: returns the article with its draft. A published article has no draft, so an update is
+ * started (published -> in_progress) with a draft copied from the live content. A pending article is locked
+ * for the reporter, not for an editor.
  */
 async function startEditing(req, res, next) {
   try {
     const article = await articleService.findArticleById(req.params.id);
     if (!article) return sendError(res, articleNotFound());
 
-    if (article.status === ArticleStatusEnum.PENDING_APPROVAL) {
+    if (article.status === ArticleStatusEnum.PENDING_APPROVAL && !isEditor(req.session)) {
       return sendError(res, invalidRequest('Cannot edit an article while it is pending approval'));
     }
 
     const draftRevision = await articleService.findDraftRevision(article.id);
     if (draftRevision) return res.status(HTTP_STATUS.OK).json(toArticleResponse(article, draftRevision));
 
-    // No draft: only a published article may start an update, from its live content.
     if (article.status !== ArticleStatusEnum.PUBLISHED) return sendError(res, draftMissing(article));
     if (!article.content) return sendError(res, brokenArticle(article, 'is published but has no content'));
 
@@ -199,7 +165,10 @@ async function startEditing(req, res, next) {
   }
 }
 
-/** Auto-save: writes the sent content fields into the article's draft (see startEditing for its creation). */
+/**
+ * Auto-save: writes the sent content fields into the draft, or answers 204 when nothing changed.
+ * Only an in_progress article can be saved.
+ */
 async function saveDraft(req, res, next) {
   try {
     const contentError = articleValidators.getContentError(req.body);
@@ -208,10 +177,17 @@ async function saveDraft(req, res, next) {
     const article = await articleService.findArticleById(req.params.id);
     if (!article) return sendError(res, articleNotFound());
 
+    if (article.status !== ArticleStatusEnum.IN_PROGRESS) {
+      return sendError(res, invalidRequest(`Cannot save changes to an article that is ${presentableStatus(article.status)}`));
+    }
+
     const draftRevision = await articleService.findDraftRevision(article.id);
     if (!draftRevision) return sendError(res, draftMissing(article));
 
-    const saved = await articleService.saveDraftChanges(article, draftRevision, toContentChanges(req.body));
+    const contentChanges = toContentChanges(req.body);
+    if (!hasContentChanges(draftRevision.content, contentChanges)) return res.status(HTTP_STATUS.NO_CONTENT).end();
+
+    const saved = await articleService.saveDraftChanges(article, draftRevision, contentChanges);
     if (!saved) return sendError(res, statusChanged());
 
     res.status(HTTP_STATUS.OK).json(toArticleResponse(saved.article, saved.draftRevision));
@@ -220,16 +196,15 @@ async function saveDraft(req, res, next) {
   }
 }
 
-/**
- * The owning reporter sends a complete draft to the editors. The route guard already allows only the author.
- * Only an in_progress or a returned_for_revision article can be submitted.
- */
+/** Sends a complete draft to the editors (from in_progress or returned_for_revision). */
 async function submitForApproval(req, res, next) {
   try {
     const article = await articleService.findArticleById(req.params.id);
     if (!article) return sendError(res, articleNotFound());
 
-    if (article.status != ArticleStatusEnum.IN_PROGRESS) {
+    const canSubmit =
+      article.status === ArticleStatusEnum.IN_PROGRESS || article.status === ArticleStatusEnum.RETURNED_FOR_REVISION;
+    if (!canSubmit) {
       return sendError(res, invalidRequest(`Cannot submit an article that is ${presentableStatus(article.status)}`));
     }
 
@@ -248,7 +223,7 @@ async function submitForApproval(req, res, next) {
   }
 }
 
-/** An editor publishes the draft: it becomes an immutable published revision and the article's live content. */
+/** An editor publishes the draft: it becomes a published revision and the article's live content. */
 async function approveArticle(req, res, next) {
   try {
     const article = await articleService.findArticleById(req.params.id);
@@ -275,17 +250,13 @@ async function approveArticle(req, res, next) {
     });
     if (!updatedArticle) return sendError(res, statusChanged());
 
-    // The published article has no draft any more.
     res.status(HTTP_STATUS.OK).json(toArticleResponse(updatedArticle, null));
   } catch (err) {
     next(err);
   }
 }
 
-/**
- * An editor sends the article back to the reporter with a list of notes explaining what to fix.
- * The notes replace the previous ones.
- */
+/** An editor sends the article back to the reporter with notes. The notes replace the previous ones. */
 async function returnForRevision(req, res, next) {
   try {
     const { notes } = req.body || {};
@@ -314,7 +285,7 @@ async function returnForRevision(req, res, next) {
   }
 }
 
-/** An editor deletes the article together with all its revisions. */
+/** An editor deletes the article with all its revisions. */
 async function deleteArticle(req, res, next) {
   try {
     const article = await articleService.findArticleById(req.params.id);

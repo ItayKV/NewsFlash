@@ -211,7 +211,7 @@ Only the transitions below are allowed. The server must reject any other transit
 | `pending_approval` | `published` | Editor | The draft revision is published (it gets `publishedAt` and `approvedBy` and becomes immutable) and its content is copied to `Article.content`. |
 | `pending_approval` | `returned_for_revision` | Editor | A list of 1 or more non-empty editor notes is required. Without it, the server rejects the request. |
 | `returned_for_revision` | `pending_approval` | Owning reporter | The current editor notes are cleared (no history of editor notes is kept). |
-| `published` | `in_progress` | Owning reporter | Happens when the reporter starts editing an update. A new draft revision is created as a copy of `Article.content`, by the explicit `POST /api/articles/:id/edit` (start editing). `Article.content` stays live. |
+| `published` | `in_progress` | Owning reporter or Editor | Happens when the reporter (or an editor, who is admin-like) starts editing an update. A new draft revision is created as a copy of `Article.content`, by the explicit `POST /api/articles/:id/edit` (start editing). `Article.content` stays live. |
 
 - There is **no** transition from `pending_approval` back to `in_progress`, not even by the reporter.
 - When an editor returns an update of a published article, `Article.content` remains live and unchanged.
@@ -224,9 +224,10 @@ A reporter can never edit an article they do not own, in any state.
 | `in_progress` | Can edit | Can edit |
 | `pending_approval` | Locked | Can edit |
 | `returned_for_revision` | Can edit | Can edit |
-| `published` | Can start editing an update | Can edit |
+| `published` | Can start editing an update | Can start editing an update, then edit |
 
-- Editor edits always go to the draft revision and never change `status`. To publish, the editor goes through the normal approve action.
+- Editors are admin-like: they can edit any article in any state, whoever owns it.
+- Editor edits always go to the draft revision and never change `status`, except that an editor editing a `published` article first starts an update exactly like the reporter does (`POST /api/articles/:id/edit`: a new draft is created and `status` becomes `in_progress`), because an article has a draft if and only if it is not published (7.5). To publish, the editor goes through the normal approve action.
 - Concurrent editing of the same article is not supported (assumed not to occur).
 
 ### 7.3 Deletion

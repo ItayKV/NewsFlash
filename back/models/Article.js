@@ -1,6 +1,5 @@
 const crypto = require('crypto');
 const mongoose = require('mongoose');
-const { RoleEnum } = require('./User');
 const userSnapshotSchema = require('./userSnapshotSchema');
 const { ARTICLE_CATEGORIES, contentSchema, CONTENT_FIELDS, isEmpty, getMissingFields } = require('./contentSchema');
 
@@ -10,16 +9,6 @@ const ArticleStatusEnum = Object.freeze({
   PUBLISHED: 'published',
   RETURNED_FOR_REVISION: 'returned_for_revision',
 });
-
-// Allowed status changes (CLAUDE.md section 7.1). Any change not listed here is rejected.
-// ownerOnly: only the reporter who owns the article.
-const ALLOWED_TRANSITIONS = Object.freeze([
-  Object.freeze({ from: ArticleStatusEnum.IN_PROGRESS, to: ArticleStatusEnum.PENDING_APPROVAL, role: RoleEnum.REPORTER, ownerOnly: true }),
-  Object.freeze({ from: ArticleStatusEnum.PENDING_APPROVAL, to: ArticleStatusEnum.PUBLISHED, role: RoleEnum.EDITOR, ownerOnly: false }),
-  Object.freeze({ from: ArticleStatusEnum.PENDING_APPROVAL, to: ArticleStatusEnum.RETURNED_FOR_REVISION, role: RoleEnum.EDITOR, ownerOnly: false }),
-  Object.freeze({ from: ArticleStatusEnum.RETURNED_FOR_REVISION, to: ArticleStatusEnum.PENDING_APPROVAL, role: RoleEnum.REPORTER, ownerOnly: true }),
-  Object.freeze({ from: ArticleStatusEnum.PUBLISHED, to: ArticleStatusEnum.IN_PROGRESS, role: RoleEnum.REPORTER, ownerOnly: true }),
-]);
 
 const articleSchema = new mongoose.Schema(
   {
@@ -65,7 +54,6 @@ const Article = mongoose.model('Article', articleSchema);
 module.exports = Article;
 module.exports.ArticleStatusEnum = ArticleStatusEnum;
 module.exports.contentSchema = contentSchema;
-module.exports.ALLOWED_TRANSITIONS = ALLOWED_TRANSITIONS;
 module.exports.ARTICLE_CATEGORIES = ARTICLE_CATEGORIES;
 module.exports.CONTENT_FIELDS = CONTENT_FIELDS;
 module.exports.isEmpty = isEmpty;
