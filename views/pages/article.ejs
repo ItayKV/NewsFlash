@@ -12,9 +12,12 @@
   <%- include('../components/header') %>
   <main>
     <article class="article-page">
-      <% if (article.category) { %>
-        <span class="article-page__category"><%= article.category %></span>
-      <% } %>
+      <div class="article-page__top">
+        <a class="article-page__back" href="/">&larr; Back to feed</a>
+        <% if (article.category) { %>
+          <span class="article-page__category"><%= article.category %></span>
+        <% } %>
+      </div>
       <h1 class="article-page__title"><%= article.title %></h1>
       <p class="article-page__meta">
         <% if (article.authorName) { %><span><%= article.authorName %></span> · <% } %>

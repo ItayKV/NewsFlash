@@ -5,9 +5,32 @@
   padding: 1.5rem 1rem;
 }
 
-.article-page__category {
+.article-page__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.article-page__back {
   display: inline-block;
-  margin-bottom: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-accent);
+  background-color: var(--color-bg);
+  color: var(--color-accent);
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.article-page__back:hover {
+  background-color: #e8e8e4;
+}
+
+.article-page__category {
+  margin-left: auto;
   padding: 0.15rem 0.6rem;
   border-radius: 999px;
   background-color: var(--color-accent);
