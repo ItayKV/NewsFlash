@@ -5,6 +5,58 @@
   padding: 1.5rem 1rem;
 }
 
+.feed__search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.feed__search-input {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.feed__search-input,
+.feed__search-category,
+.feed__search-button {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.feed__search-button {
+  border-color: var(--color-accent);
+  background-color: var(--color-accent);
+  color: #fff;
+  cursor: pointer;
+}
+
+.feed__reset {
+  margin-bottom: 1rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-accent);
+  background-color: var(--color-bg);
+  color: var(--color-accent);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  opacity: 0;
+  visibility: hidden; /* transparent but still takes up space, and can't be clicked or focused */
+  transition: opacity 0.15s, background-color 0.15s ease;
+}
+
+.feed__reset:hover {
+  background-color: #e8e8e4;
+}
+
+.feed__reset--visible {
+  opacity: 1;
+  visibility: visible;
+}
+
 .feed__articles {
   display: flex;
   flex-direction: column;

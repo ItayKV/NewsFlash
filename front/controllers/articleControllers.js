@@ -3,11 +3,13 @@ const articleValidators = require('../../back/validators/articleValidators');
 const { HTTP_STATUS } = require('../../back/config/constants');
 const { serializeArticlesPage, serializeArticle } =require('../../back/serializers/articleSerializers');
 
+const { ARTICLE_CATEGORIES } = require('../../back/models/Article');
+
 const HAS_MORE_HEADER = 'X-Has-More';
 
 /** One page of the public feed, with whether a later page exists. */
-async function findFeedPage(pagination) {
-  const { articles, total } = await articleService.findPublicArticlePage(pagination);
+async function findFeedPage(pagination, filters) {
+  const { articles, total } = await articleService.findPublicArticlePage(pagination, filters);
   return {
     articles: serializeArticlesPage(articles),
     hasMore: pagination.page < Math.ceil(total / pagination.limit),
@@ -19,7 +21,7 @@ async function renderHomePage(req, res, next) {
   try {
     const pagination = articleValidators.parsePagination({});
     const { articles, hasMore } = await findFeedPage(pagination);
-    res.render('pages/home', { articles, hasMore });
+    res.render('pages/home', { articles, hasMore, categories: ARTICLE_CATEGORIES });
   } catch (err) {
     next(err);
   }
@@ -31,7 +33,10 @@ async function renderFeedPage(req, res, next) {
     const pagination = articleValidators.parsePagination(req.query);
     if (pagination.error) return res.status(HTTP_STATUS.BAD_REQUEST).type('text').send(pagination.error);
 
-    const { articles, hasMore } = await findFeedPage(pagination);
+    const filters = articleValidators.parseFeedFilters(req.query);
+    if (filters.error) return res.status(HTTP_STATUS.BAD_REQUEST).type('text').send(filters.error);
+
+    const { articles, hasMore } = await findFeedPage(pagination, filters);
     res.set(HAS_MORE_HEADER, String(hasMore));
     res.render('partials/feedPage', { articles });
   } catch (err) {

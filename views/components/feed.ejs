@@ -1,4 +1,16 @@
 <section class="feed" id="feed" data-next-page="2" data-has-more="<%= hasMore %>">
+  <form class="feed__search" id="feed-search" role="search">
+    <input class="feed__search-input" type="search" name="search" maxlength="100"
+           placeholder="Search articles…" aria-label="Search articles">
+    <select class="feed__search-category" name="category" aria-label="Category">
+      <option value="">All categories</option>
+      <% categories.forEach((category) => { %>
+        <option value="<%= category %>"><%= category %></option>
+      <% }) %>
+    </select>
+    <button class="feed__search-button" type="submit">Search</button>
+  </form>
+  <button class="feed__reset" id="feed-reset" type="button">Reset search</button>
   <div class="feed__articles" id="feed-articles">
     <%- include('../partials/feedPage', { articles }) %>
   </div>
