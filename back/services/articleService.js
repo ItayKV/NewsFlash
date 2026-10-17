@@ -146,39 +146,20 @@ async function deleteArticleWithRevisions(articleId) {
 // The Article fields a list needs (no bodies).
 const LIST_FIELDS = 'status content.title publishedAt updatedAt editorNotes author';
 
-/**
- * One page of lean articles matching the filter, and the total count. By default the articles are the ones of
- * a workspace list (LIST_FIELDS), the most recently changed first; `fields` and `sortBy` pick others.
- * `_id` is added to the sort so the order is stable between pages.
- */
-async function findArticlePage(filter, { page, limit }, { fields = LIST_FIELDS, sortBy = { updatedAt: -1 } } = {}) {
+/** One page of articles matching the filter, newest change first, and the total count. */
+async function findArticlePage(filter, { page, limit }) {
   const query = Article.find(filter)
-    .sort({ ...sortBy, _id: -1 })
+    .sort({ updatedAt: -1, _id: -1 }) // _id makes the order stable between pages
     .skip((page - 1) * limit)
     .limit(limit)
-    .select(fields);
+    .select(LIST_FIELDS);
 
   const [articles, total] = await Promise.all([query.lean(), Article.countDocuments(filter)]);
   return { articles, total };
 }
 
-// The only Article fields a feed card needs.
-const FEED_FIELDS = 'content.title content.summary content.category author.name publishedAt';
-
-/**
- * One page of the published articles, newest publication first, and the total count. An article is published
- * once it has been approved (publishedAt is set), whatever its status is now: it is shown from its live content.
- */
-function findPublishedArticles(pagination) {
-  return findArticlePage({ publishedAt: { $ne: null } }, pagination, {
-    fields: FEED_FIELDS,
-    sortBy: { publishedAt: -1 },
-  });
-}
-
 module.exports = {
   findArticleById,
-  findPublishedArticles,
   findAuthorId,
   findDraftRevision,
   findUserSnapshot,
