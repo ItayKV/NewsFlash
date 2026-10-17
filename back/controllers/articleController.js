@@ -2,7 +2,7 @@ const articleService = require('../services/articleService');
 const { HTTP_STATUS } = require('../config/constants');
 const articleValidators = require('../validators/articleValidators');
 const { presentableStatus } = require('../utils/articleUtils');
-const { serializeArticles } = require('../serializers/articleSerializers');
+const { serializeArticlesPage } = require('../serializers/articleSerializers');
 const { RoleEnum } = require('../models/User');
 const { ArticleStatusEnum, CONTENT_FIELDS, isEmpty, getMissingFields } = require('../models/Article');
 
@@ -105,7 +105,7 @@ async function listPublicArticles(req, res, next) {
     const { articles, total } = await articleService.findPublicArticlePage(pagination);
 
     res.status(HTTP_STATUS.OK).json({
-      items: serializeArticles(articles),
+      items: serializeArticlesPage(articles),
       page: pagination.page,
       limit: pagination.limit,
       total,

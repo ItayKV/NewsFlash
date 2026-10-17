@@ -61,6 +61,10 @@ function getContentError(content) {
   return null;
 }
 
+// A well-formed article id (a UUID, see Article._id).
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const isValidArticleId = (articleId) => isString(articleId) && UUID_PATTERN.test(articleId);
+
 // A positive whole number given as a query string value (e.g. '3').
 const isPositiveIntegerString = (value) => isString(value) && /^[1-9]\d*$/.test(value);
 
@@ -103,6 +107,7 @@ module.exports = {
   isValidImageUrl,
   isValidCategory,
   isValidStatus,
+  isValidArticleId,
   getContentError,
   parsePagination,
   getEditorNotesError,

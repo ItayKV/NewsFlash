@@ -176,8 +176,19 @@ function findPublicArticlePage(pagination) {
   return findArticlePage(PUBLIC_FILTER, pagination, { sort: { publishedAt: -1 }, fields: FEED_FIELDS });
 }
 
+// The Article fields the public article page needs (the live content, with its body).
+const PUBLIC_ARTICLE_FIELDS = 'content author publishedAt';
+
+/** The public article (live content), or null when there is none or it was never published. */
+function findPublicArticleById(articleId) {
+  return Article.findOne({ _id: articleId, ...PUBLIC_FILTER })
+    .select(PUBLIC_ARTICLE_FIELDS)
+    .lean();
+}
+
 module.exports = {
   findArticleById,
+  findPublicArticleById,
   findAuthorId,
   findDraftRevision,
   findUserSnapshot,

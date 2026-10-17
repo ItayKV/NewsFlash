@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= article.title %> – The Daily Web</title>
+  <meta name="description" content="<%= article.summary %>">
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/article.css">
+</head>
+<body>
+  <%- include('../components/header') %>
+  <main>
+    <article class="article-page">
+      <% if (article.category) { %>
+        <span class="article-page__category"><%= article.category %></span>
+      <% } %>
+      <h1 class="article-page__title"><%= article.title %></h1>
+      <p class="article-page__meta">
+        <% if (article.authorName) { %><span><%= article.authorName %></span> · <% } %>
+        <time datetime="<%= new Date(article.publishedAt).toISOString() %>">
+          <%= new Date(article.publishedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) %>
+        </time>
+      </p>
+      <% if (article.imageUrl) { %>
+        <img class="article-page__image" src="<%= article.imageUrl %>" alt="">
+      <% } %>
+      <p class="article-page__summary"><%= article.summary %></p>
+      <div class="article-page__body">
+        <% article.body.split(/\n{2,}/).filter((paragraph) => paragraph.trim()).forEach((paragraph) => { %>
+          <p><%= paragraph.trim() %></p>
+        <% }) %>
+      </div>
+    </article>
+  </main>
+</body>
+</html>

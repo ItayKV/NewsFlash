@@ -19,6 +19,7 @@
 }
 
 .article-card {
+  position: relative; /* anchors the title link's ::after, which makes the whole card clickable */
   display: flex;
   flex-wrap: wrap;
   background-color: #fff;
@@ -60,7 +61,13 @@
   text-decoration: none;
 }
 
-.article-card__title a:hover {
+.article-card__title a::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.article-card:hover .article-card__title a {
   color: var(--color-accent);
 }
 

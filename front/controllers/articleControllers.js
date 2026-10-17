@@ -1,7 +1,7 @@
 const articleService = require('../../back/services/articleService');
 const articleValidators = require('../../back/validators/articleValidators');
 const { HTTP_STATUS } = require('../../back/config/constants');
-const { serializeArticles } = require('../../back/serializers/articleSerializers');
+const { serializeArticlesPage, serializeArticle } =require('../../back/serializers/articleSerializers');
 
 const HAS_MORE_HEADER = 'X-Has-More';
 
@@ -9,7 +9,7 @@ const HAS_MORE_HEADER = 'X-Has-More';
 async function findFeedPage(pagination) {
   const { articles, total } = await articleService.findPublicArticlePage(pagination);
   return {
-    articles: serializeArticles(articles),
+    articles: serializeArticlesPage(articles),
     hasMore: pagination.page < Math.ceil(total / pagination.limit),
   };
 }
@@ -39,4 +39,17 @@ async function renderFeedPage(req, res, next) {
   }
 }
 
-module.exports = { renderHomePage, renderFeedPage };
+/** The article page, server-rendered with the full live article (body included) for readers and crawlers. */
+async function renderArticlePage(req, res, next) {
+  try {
+    const { id } = req.params;
+    const article = articleValidators.isValidArticleId(id) ? await articleService.findPublicArticleById(id) : null;
+    if (!article) return res.status(HTTP_STATUS.NOT_FOUND).type('text').send('Article not found');
+
+    res.render('pages/article', { article: serializeArticle(article) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { renderHomePage, renderFeedPage, renderArticlePage };
