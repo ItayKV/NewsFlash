@@ -1,0 +1,7 @@
+<% if (articles.length === 0) { %>
+  <p class="feed__empty">No articles to show.</p>
+<% } else { %>
+  <% for (const article of articles) { %>
+    <%- include('articleCard', { article }) %>
+  <% } %>
+<% } %>

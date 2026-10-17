@@ -6,6 +6,8 @@ const { sessionMiddleware } = require('./back/config/session');
 const userRoutes = require('./back/routes/userRoutes');
 const articleRoutes = require('./back/routes/articleRoutes');
 const userService = require('./back/services/userService');
+const articleService = require('./back/services/articleService');
+const articleValidators = require('./back/validators/articleValidators');
 const { HTTP_STATUS } = require('./back/config/constants');
 const { RoleEnum } = require('./back/models/User');
 const { requirePageRole } = require('./back/middleware/rbac');
@@ -29,8 +31,18 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/', (req, res) => {
-  res.render('pages/home');
+// The articles of the current page are rendered into the page itself, so the first response already
+// contains them. ?page= picks the page (the first one by default).
+app.get('/', async (req, res, next) => {
+  try {
+    const pagination = articleValidators.parsePagination(req.query);
+    if (pagination.error) return res.status(HTTP_STATUS.BAD_REQUEST).send(pagination.error);
+
+    const { articles } = await articleService.findPublishedArticles(pagination);
+    res.render('pages/home', { articles });
+  } catch (err) {
+    next(err);
+  }
 });
 
 app.get('/login', (req, res) => {

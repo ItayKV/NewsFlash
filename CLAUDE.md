@@ -96,6 +96,7 @@ the-daily-web/
 │       │   └── stats.ejs       # Impact analytics dashboard
 │       └── partials/
 │           ├── articleCard.ejs
+│           ├── articleList.ejs     # The cards of one page of articles (the home feed)
 │           └── commentItem.ejs
 ├── logs/                       # Activity log files (git-ignored)
 ├── .env.example

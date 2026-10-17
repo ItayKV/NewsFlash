@@ -70,28 +70,6 @@ body {
   opacity: 0.9;
 }
 
-.landing {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 2rem;
-}
-
-.landing h1 {
-  font-size: 2.5rem;
-  letter-spacing: -0.02em;
-  color: var(--color-accent);
-}
-
-.landing .tagline {
-  margin-top: 0.5rem;
-  font-size: 1.1rem;
-  color: #555;
-}
-
 .auth {
   flex: 1;
   display: flex;
