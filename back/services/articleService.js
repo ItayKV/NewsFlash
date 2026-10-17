@@ -171,9 +171,20 @@ const FEED_FIELDS = 'content.title content.summary content.imageUrl content.cate
 // An article is public once it was published for the first time (publishedAt is set with its first approval).
 const PUBLIC_FILTER = Object.freeze({ publishedAt: { $ne: null } });
 
-/** One page of the public articles, newest publication first, and the total count. */
-function findPublicArticlePage(pagination) {
-  return findArticlePage(PUBLIC_FILTER, pagination, { sort: { publishedAt: -1 }, fields: FEED_FIELDS });
+const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * One page of the public articles, newest publication first, and the total count. Optionally only one
+ * category, and only articles whose title or summary contains the search text (case-insensitive).
+ */
+function findPublicArticlePage(pagination, { search = null, category = null } = {}) {
+  const filter = { ...PUBLIC_FILTER };
+  if (category) filter['content.category'] = category;
+  if (search) {
+    const searchPattern = new RegExp(escapeRegex(search), 'i');
+    filter.$or = [{ 'content.title': searchPattern }, { 'content.summary': searchPattern }];
+  }
+  return findArticlePage(filter, pagination, { sort: { publishedAt: -1 }, fields: FEED_FIELDS });
 }
 
 // The Article fields the public article page needs (the live content, with its body).
