@@ -134,8 +134,13 @@ async function listReporterArticles(req, res, next) {
 
     const { articles, total } = await articleService.findAuthorArticles(req.session.userId, pagination);
 
+    // Only unpublished articles show their draft's title.
+    const unpublishedIds = articles.filter((article) => article.status !== ArticleStatusEnum.PUBLISHED).map((article) => article._id);
+    const drafts = unpublishedIds.length ? await articleService.findDraftTitles(unpublishedIds) : [];
+    const draftTitles = new Map(drafts.map((draft) => [draft.article, draft.content?.title]));
+
     res.status(HTTP_STATUS.OK).json({
-      items: serializeReporterArticles(articles),
+      items: serializeReporterArticles(articles, draftTitles),
       page: pagination.page,
       limit: pagination.limit,
       total,

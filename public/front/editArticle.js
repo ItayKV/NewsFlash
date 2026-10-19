@@ -1,6 +1,6 @@
 // The edit screen: loads an existing article's draft, creates a new article on the first change, and auto-saves
 // the changed fields to the draft (text fields after a pause, the others at once).
-const DEBOUNCE_MS = 10000;
+const DEBOUNCE_MS = 3000;
 const TEXT_FIELDS = ['title', 'summary', 'body'];
 
 const form = document.getElementById('article-form');
