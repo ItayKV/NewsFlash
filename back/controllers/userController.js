@@ -1,11 +1,24 @@
 const userService = require('../services/userService');
 const { HTTP_STATUS, MONGO_DUPLICATE_KEY_ERROR } = require('../config/constants');
 const userValidators = require('../validators/userValidators');
-
-// TODO: replace with real authentication/authorization once the auth task lands.
-const isAdmin = () => true;
+const { deleteUserSessions } = require('../services/sessionService');
 
 const invalidResponse = (res, message) => res.status(HTTP_STATUS.BAD_REQUEST).json({ error: message });
+
+/**
+ * Logs the given user out everywhere by deleting their stored sessions.
+ * If they are the one making this request, the current session is destroyed
+ * too, so express-session does not try to touch a session that is gone.
+ */
+async function endUserSessions(req, res, userId) {
+  await deleteUserSessions(userId);
+  if (req.session.userId !== userId) return;
+
+  await new Promise((resolve, reject) => {
+    req.session.destroy((err) => (err ? reject(err) : resolve()));
+  });
+  res.clearCookie('connect.sid');
+}
 
 async function addUser(req, res, next) {
   try {
@@ -37,19 +50,35 @@ async function login(req, res, next) {
 
     const user = await userService.login(email, password);
     if (!user) return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: 'Wrong email or password' });
-    res.status(HTTP_STATUS.OK).json(user);
+
+    // Regenerate the session id on login to prevent session fixation.
+    // The stored role is what RBAC middleware checks on later requests.
+    req.session.regenerate((err) => {
+      if (err) return next(err);
+      req.session.userId = user.id;
+      req.session.role = user.role;
+      res.status(HTTP_STATUS.OK).json(user);
+    });
   } catch (err) {
     next(err);
   }
+}
+
+function logout(req, res, next) {
+  req.session.destroy((err) => {
+    if (err) return next(err);
+    res.clearCookie('connect.sid');
+    res.status(HTTP_STATUS.OK).json({ message: 'Logged out' });
+  });
 }
 
 async function deleteUser(req, res, next) {
   try {
     const user = await userService.findById(req.params.user_id);
     if (!user) return res.status(HTTP_STATUS.NOT_FOUND).json({ error: 'User not found' });
-    // Later: allow only admin or the user deleting their own account.
-    if (!isAdmin()) return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Not permitted' });
 
+    // Sessions go first: if the delete then fails, the user is only logged out.
+    await endUserSessions(req, res, user.id);
     await userService.deleteById(user.id);
     res.status(HTTP_STATUS.OK).json({ message: 'User deleted' });
   } catch (err) {
@@ -60,12 +89,22 @@ async function deleteUser(req, res, next) {
 async function updateUser(req, res, next) {
   try {
     const { old_password, new_password, name, role } = req.body || {};
-    if (!userValidators.isSafePassword(old_password)) return invalidResponse(res, 'Invalid password');
+    const isSelfUpdate = req.session.userId === req.params.user_id;
 
-    // Authenticate first; a missing user and a wrong password look the same.
+    if (isSelfUpdate && role != null) {
+      return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Cannot change your own role' });
+    }
+
     const user = await userService.findById(req.params.user_id);
-    if (!user || !(await userService.verifyPassword(user, old_password))) {
-      return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: 'Unauthenticated' });
+    if (!user) return res.status(HTTP_STATUS.NOT_FOUND).json({ error: 'User not found' });
+
+    // Users must prove they know their current password; an editor updating
+    // someone else is already authorized by the route's role check.
+    if (isSelfUpdate) {
+      if (!userValidators.isSafePassword(old_password)) return invalidResponse(res, 'Invalid password');
+      if (!(await userService.verifyPassword(user, old_password))) {
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: 'Unauthenticated' });
+      }
     }
 
     if (new_password != null && !userValidators.isValidPassword(new_password)) {
@@ -74,11 +113,17 @@ async function updateUser(req, res, next) {
     if (name != null && !userValidators.isValidName(name)) return invalidResponse(res, 'Invalid name');
     if (role != null && !userValidators.isValidRole(role)) return invalidResponse(res, 'Invalid role');
 
+    const roleChanged = role != null && role !== user.role;
+    const passwordChangedByOther = new_password != null && !isSelfUpdate;
+
     const updated = await userService.update(user, {
       password: new_password,
       name,
       role,
     });
+    // Sessions hold the old role, and a password changed by someone else
+    // means the user's existing logins should no longer be trusted.
+    if (roleChanged || passwordChangedByOther) await endUserSessions(req, res, user.id);
     res.status(HTTP_STATUS.OK).json(updated);
   } catch (err) {
     next(err);
@@ -87,7 +132,6 @@ async function updateUser(req, res, next) {
 
 async function listUsers(req, res, next) {
   try {
-    if (!isAdmin()) return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Not permitted' });
     res.status(HTTP_STATUS.OK).json(await userService.listAll());
   } catch (err) {
     next(err);
@@ -96,7 +140,6 @@ async function listUsers(req, res, next) {
 
 async function getUser(req, res, next) {
   try {
-    if (!isAdmin()) return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Not permitted' });
     const user = await userService.findById(req.params.user_id);
     if (!user) return res.status(HTTP_STATUS.NOT_FOUND).json({ error: 'User not found' });
     res.status(HTTP_STATUS.OK).json(user);
@@ -105,4 +148,4 @@ async function getUser(req, res, next) {
   }
 }
 
-module.exports = { addUser, login, deleteUser, updateUser, listUsers, getUser };
+module.exports = { addUser, login, logout, deleteUser, updateUser, listUsers, getUser };

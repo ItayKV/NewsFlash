@@ -1,0 +1,16 @@
+<header class="toolbar">
+  <a href="/" class="toolbar__brand">The Daily Web</a>
+  <nav class="toolbar__actions">
+    <% if (currentUser) { %>
+      <% if (currentUser.role === RoleEnum.REPORTER) { %>
+        <a href="/reporter" class="toolbar__link">My Articles</a>
+      <% } else if (currentUser.role === RoleEnum.EDITOR) { %>
+        <a href="/editor" class="toolbar__link">Review Queue</a>
+      <% } %>
+      <button id="logout-button" type="button" class="toolbar__button">Logout</button>
+    <% } else { %>
+      <a href="/login" class="toolbar__button">Login</a>
+    <% } %>
+  </nav>
+</header>
+<script src="/front/header.js" defer></script>
