@@ -1,5 +1,6 @@
 const { HTTP_STATUS } = require('../config/constants');
 const { RoleEnum } = require('../models/User');
+const articleService = require('../services/articleService');
 
 // Only trusts req.session (server-side state), never client-supplied
 // headers or body fields. Returns the rejection response to send, or null
@@ -51,4 +52,30 @@ function requireSelfOrRole(paramName, ...allowedRoles) {
   };
 }
 
-module.exports = { requireRole, requirePageRole, requireSelfOrRole, RoleEnum };
+/** Restricts an article route (`:id`) to the article's author, or to a user with one of `allowedRoles`. */
+function requireOwnerOrRole(...allowedRoles) {
+  return async function (req, res, next) {
+    if (rejectIfUnauthenticated(req, res)) return;
+    if (allowedRoles.includes(req.session.role)) return next();
+
+    try {
+      const authorId = await articleService.findAuthorId(req.params.id);
+      if (authorId !== null && authorId === req.session.userId) return next();
+    } catch (err) {
+      return next(err);
+    }
+    return res.status(HTTP_STATUS.FORBIDDEN).json({ error: 'Not permitted' });
+  };
+}
+
+/** Restricts an article route to the article's author only (the reporter who created it). */
+const requireArticleOwner = () => requireOwnerOrRole();
+
+module.exports = {
+  requireRole,
+  requirePageRole,
+  requireSelfOrRole,
+  requireOwnerOrRole,
+  requireArticleOwner,
+  RoleEnum,
+};
