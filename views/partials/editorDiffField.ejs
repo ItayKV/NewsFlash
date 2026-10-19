@@ -1,0 +1,25 @@
+<%# One content field, the live version on the left and the draft on the right, with the differences marked. %>
+<%
+  const renderSide = (paragraphs) => paragraphs.map((segments) =>
+    '<p>' + segments.map((segment) => {
+      const text = segment.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return segment.type === 'same' ? text + ' ' : `<mark class="diff diff--${segment.type}">${text}</mark> `;
+    }).join('') + '</p>'
+  ).join('');
+%>
+<section class="review__field<%= field.isChanged ? ' review__field--changed' : '' %>">
+  <h3 class="review__field-title">
+    <%= field.label %>
+    <% if (field.isChanged) { %><span class="review__changed-flag">changed</span><% } %>
+  </h3>
+  <div class="review__compare">
+    <div class="review__side">
+      <h4 class="review__side-title">Published</h4>
+      <div class="review__text"><%- field.published.length ? renderSide(field.published) : '<p class="review__empty">(empty)</p>' %></div>
+    </div>
+    <div class="review__side">
+      <h4 class="review__side-title">Draft</h4>
+      <div class="review__text"><%- field.draft.length ? renderSide(field.draft) : '<p class="review__empty">(empty)</p>' %></div>
+    </div>
+  </div>
+</section>

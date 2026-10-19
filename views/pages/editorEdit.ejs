@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit article - The Daily Web</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+  <%- include('../components/header') %>
+  <main class="review" id="editor-form-page" data-article-id="<%= articleId %>">
+    <a class="review__back" href="/editor/articles/<%= articleId %>">&larr; Back to the review</a>
+    <h1 class="review__title">Edit the draft</h1>
+    <p class="review__info">Changes are saved automatically. The status of the article does not change.</p>
+    <p class="review__error" id="edit-error" role="alert"></p>
+    <p class="review__save-state" id="save-state" role="status">Loading…</p>
+    <form class="edit-form" id="edit-form" hidden>
+      <label for="field-title">Title</label>
+      <input type="text" id="field-title" name="title" maxlength="120">
+      <label for="field-summary">Summary</label>
+      <textarea id="field-summary" name="summary" rows="3" maxlength="500"></textarea>
+      <label for="field-category">Category</label>
+      <select id="field-category" name="category">
+        <option value="">(none)</option>
+        <% categories.forEach((category) => { %><option value="<%= category %>"><%= category %></option><% }) %>
+      </select>
+      <label for="field-imageUrl">Image URL (https)</label>
+      <input type="url" id="field-imageUrl" name="imageUrl">
+      <label for="field-body">Body</label>
+      <textarea id="field-body" name="body" rows="18" maxlength="50000"></textarea>
+    </form>
+  </main>
+  <script src="/front/editorEdit.js" defer></script>
+</body>
+</html>

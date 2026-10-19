@@ -6,10 +6,8 @@ const { sessionMiddleware } = require('./back/config/session');
 const viewRoutes = require('./front/routes/viewRoutes');
 const userRoutes = require('./back/routes/userRoutes');
 const articleRoutes = require('./back/routes/articleRoutes');
-const userService = require('./back/services/userService');
 const { HTTP_STATUS } = require('./back/config/constants');
 const { RoleEnum } = require('./back/models/User');
-const { requirePageRole } = require('./back/middleware/rbac');
 
 const app = express();
 
@@ -32,25 +30,6 @@ app.use((req, res, next) => {
 
 app.get('/login', (req, res) => {
   res.render('pages/login');
-});
-
-// TODO: replace with a real lookup of articles pending review once the Article model exists.
-function findReviewQueueArticles() {
-  return [
-    { title: 'Local Startup Raises Series A Funding', status: 'pending_approval', reporterName: 'Dana Cohen' },
-    { title: 'Downtown Traffic Study Released', status: 'pending_approval', reporterName: 'Omer Levi' },
-    { title: 'School District Announces Budget Cuts', status: 'returned_for_revision', reporterName: 'Maya Ron' },
-  ];
-}
-
-// The editor's list is rendered into the page itself, so the first response already contains it.
-app.get('/editor', requirePageRole(RoleEnum.EDITOR), async (req, res, next) => {
-  try {
-    const editor = await userService.findById(req.session.userId);
-    res.render('pages/editor', { editorName: editor.name, articles: findReviewQueueArticles() });
-  } catch (err) {
-    next(err);
-  }
 });
 
 app.use(viewRoutes);

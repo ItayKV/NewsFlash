@@ -6,9 +6,14 @@
     returned_for_revision: { label: 'Returned for Revision', status_class: 'returned' },
   };
   const status = statusDisplay[article.status];
+  // The title being worked on; a published article has no draft, so its live title.
+  const title = article.draftTitle || article.publishedTitle || 'Untitled';
 %>
-<li class="dashboard__item">
-  <span class="dashboard__title"><%= article.title %></span>
-  <span class="dashboard__meta">by <%= article.reporterName %></span>
+<li class="dashboard__item" data-article-id="<%= article.id %>">
+  <a class="dashboard__title dashboard__link" href="/editor/articles/<%= article.id %>"><%= title %></a>
+  <span class="dashboard__meta">by <%= article.authorName || 'Unknown' %></span>
+  <time class="dashboard__meta" datetime="<%= new Date(article.updatedAt).toISOString() %>">
+    Updated <%= new Date(article.updatedAt).toLocaleDateString('en-GB') %>
+  </time>
   <span class="dashboard__status dashboard__status--<%= status.status_class %>"><%= status.label %></span>
 </li>

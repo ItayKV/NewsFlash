@@ -1,6 +1,9 @@
 const articleService = require('../services/articleService');
 const { HTTP_STATUS } = require('../config/constants');
 const articleValidators = require('../validators/articleValidators');
+const analyticsService = require('../services/analyticsService');
+const analyticsValidators = require('../validators/analyticsValidators');
+const { EventEnum, logActivity } = require('../services/activityLogger');
 const { presentableStatus } = require('../utils/articleUtils');
 const { serializeArticlesPage, serializeReporterArticles } = require('../serializers/articleSerializers');
 const { RoleEnum } = require('../models/User');
@@ -36,6 +39,16 @@ function toArticleResponse(article, draftRevision) {
   return { ...article.toJSON(), draft: draftRevision ? draftRevision.content.toObject() : null };
 }
 
+/**
+ * Whether the draft of an article with this status can be changed by this user (CLAUDE.md 7.2). The route guard
+ * already checked that the user is an editor or the owner. A pending article is locked for its reporter, and a
+ * published article has no draft until an update is started.
+ */
+function canEditDraft(status, session) {
+  if (status === ArticleStatusEnum.IN_PROGRESS || status === ArticleStatusEnum.RETURNED_FOR_REVISION) return true;
+  return status === ArticleStatusEnum.PENDING_APPROVAL && isEditor(session);
+}
+
 /** The error if a required field of the draft content is empty, or null when it is complete. */
 function getIncompleteContentError(draftContent) {
   const missingFields = getMissingFields(draftContent);
@@ -67,12 +80,16 @@ function hasContentChanges(draftContent, contentChanges) {
   return Object.entries(contentChanges).some(([field, value]) => (draftContent[field] ?? null) !== value);
 }
 
-/** Turns lean articles into list rows. The title is the published one (null = never published). */
-function toListItems(articles) {
+/**
+ * Turns lean articles into list rows. publishedTitle is the live one (null = never published); draftTitle is
+ * the one being worked on (null = no draft, i.e. a published article).
+ */
+function toListItems(articles, draftTitles) {
   return articles.map((article) => ({
     id: article._id,
     status: article.status,
     publishedTitle: article.content?.title || null,
+    draftTitle: draftTitles.get(article._id) ?? null,
     publishedAt: article.publishedAt || null,
     updatedAt: article.updatedAt,
     editorNotes: article.editorNotes || [],
@@ -83,9 +100,10 @@ function toListItems(articles) {
 /** Sends one page of the articles matching the filter, with the paging details. */
 async function sendArticlePage(res, filter, pagination) {
   const { articles, total } = await articleService.findArticlePage(filter, pagination);
+  const draftTitles = await articleService.findDraftTitles(articles.map((article) => article._id));
 
   res.status(HTTP_STATUS.OK).json({
-    items: toListItems(articles),
+    items: toListItems(articles, draftTitles),
     page: pagination.page,
     limit: pagination.limit,
     total,
@@ -152,11 +170,13 @@ async function listEditorArticles(req, res, next) {
     const { status } = req.query;
     if (status && !articleValidators.isValidStatus(status)) return sendError(res, invalidRequest('Invalid status'));
 
+    const { search, error: searchError } = articleValidators.parseFeedFilters({ search: req.query.search });
+    if (searchError) return sendError(res, invalidRequest(searchError));
+
     const pagination = articleValidators.parsePagination(req.query);
     if (pagination.error) return sendError(res, invalidRequest(pagination.error));
 
-    const filter = status ? { status } : {};
-    await sendArticlePage(res, filter, pagination);
+    await sendArticlePage(res, articleService.buildEditorFilter({ status, search }), pagination);
   } catch (err) {
     next(err);
   }
@@ -193,7 +213,7 @@ async function startEditing(req, res, next) {
 
 /**
  * Auto-save: writes the sent content fields into the draft, or answers 204 when nothing changed.
- * Only an in_progress article can be saved.
+ * The status never changes. See canEditDraft for who can save in which status.
  */
 async function saveDraft(req, res, next) {
   try {
@@ -203,7 +223,7 @@ async function saveDraft(req, res, next) {
     const article = await articleService.findArticleById(req.params.id);
     if (!article) return sendError(res, articleNotFound());
 
-    if (article.status !== ArticleStatusEnum.IN_PROGRESS) {
+    if (!canEditDraft(article.status, req.session)) {
       return sendError(res, invalidRequest(`Cannot save changes to an article that is ${presentableStatus(article.status)}`));
     }
 
@@ -276,6 +296,8 @@ async function approveArticle(req, res, next) {
     });
     if (!updatedArticle) return sendError(res, statusChanged());
 
+    logActivity(EventEnum.ARTICLE_STATUS_CHANGED, req.session, article.id, `${article.status} -> ${updatedArticle.status}`);
+    logActivity(EventEnum.ARTICLE_PUBLISHED, req.session, article.id, article.publishedAt ? 'approved update' : 'new article');
     res.status(HTTP_STATUS.OK).json(toArticleResponse(updatedArticle, null));
   } catch (err) {
     next(err);
@@ -305,6 +327,12 @@ async function returnForRevision(req, res, next) {
     );
     if (!updatedArticle) return sendError(res, statusChanged());
 
+    logActivity(
+      EventEnum.ARTICLE_STATUS_CHANGED,
+      req.session,
+      article.id,
+      `${article.status} -> ${updatedArticle.status}, note: ${updatedArticle.editorNotes.join(' / ')}`
+    );
     res.status(HTTP_STATUS.OK).json(toArticleResponse(updatedArticle, draftRevision));
   } catch (err) {
     next(err);
@@ -318,13 +346,54 @@ async function deleteArticle(req, res, next) {
     if (!article) return sendError(res, articleNotFound());
 
     await articleService.deleteArticleWithRevisions(article.id);
+    logActivity(EventEnum.ARTICLE_DELETED, req.session, article.id, `was ${article.status}`);
     res.status(HTTP_STATUS.OK).json({ message: 'Article deleted' });
   } catch (err) {
     next(err);
   }
 }
 
+/**
+ * One article for the editor: its status, notes, the live content (null before the first publication), the
+ * draft being worked on (null when there is none) and the history of its published versions.
+ */
+async function getArticleForReview(req, res, next) {
+  try {
+    const article = await articleService.findArticleById(req.params.id);
+    if (!article) return sendError(res, articleNotFound());
+
+    const [draftRevision, revisions] = await Promise.all([
+      articleService.findDraftRevision(article.id),
+      articleService.findPublishedRevisions(article.id),
+    ]);
+    res.status(HTTP_STATUS.OK).json({
+      ...toArticleResponse(article, draftRevision),
+      revisions: revisions.map(({ publishedAt, approvedBy }) => ({ publishedAt, approvedBy: approvedBy?.name || null })),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** The article's views over time and its published updates, for the Impact Analytics chart. */
+async function getArticleImpact(req, res, next) {
+  try {
+    const impactQuery = analyticsValidators.parseImpactQuery(req.query);
+    if (impactQuery.error) return sendError(res, invalidRequest(impactQuery.error));
+
+    const article = await articleService.findArticleById(req.params.id);
+    if (!article) return sendError(res, articleNotFound());
+
+    const impact = await analyticsService.getArticleImpact(article.id, impactQuery);
+    res.status(HTTP_STATUS.OK).json({ articleId: article.id, title: article.content?.title || null, ...impact });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
+  getArticleForReview,
+  getArticleImpact,
   listPublicArticles,
   createArticle,
   listReporterArticles,

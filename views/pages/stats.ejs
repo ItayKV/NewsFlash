@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Impact Analytics - The Daily Web</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+  <%- include('../components/header') %>
+  <main class="stats" id="stats" data-selected-article-id="<%= selectedArticleId %>">
+    <h1>Impact Analytics</h1>
+    <h4 class="dashboard__subtitle">Pick a published article to see its views over time and the effect of its updates.</h4>
+
+    <section class="stats__picker" aria-label="Choose an article">
+      <form id="stats-search" role="search">
+        <input type="search" id="stats-search-input" maxlength="100" placeholder="Search published articles by title…" aria-label="Search published articles by title">
+      </form>
+      <ul class="dashboard__list stats__results" id="stats-results"></ul>
+      <p class="dashboard__message" id="stats-results-status" role="status"></p>
+    </section>
+
+    <section class="stats__chart-section" id="stats-chart-section" hidden>
+      <h2 id="stats-title"></h2>
+      <p class="stats__total" id="stats-total"></p>
+      <form class="stats__controls" id="stats-controls">
+        <label>Range
+          <select name="days">
+            <option value="3">Last 3 days</option>
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </label>
+        <label>Group by
+          <select name="bucket">
+            <option value="">Automatic</option>
+            <option value="hour">Hour</option>
+            <option value="day">Day</option>
+          </select>
+        </label>
+        <label>Compare window
+          <select name="window">
+            <option value="6">6 hours</option>
+            <option value="24" selected>24 hours</option>
+            <option value="72">3 days</option>
+            <option value="168">7 days</option>
+          </select>
+        </label>
+      </form>
+      <p class="review__error" id="stats-error" role="alert"></p>
+      <div class="stats__canvas-wrap"><canvas id="stats-canvas" aria-label="Views over time with the published updates marked" role="img"></canvas></div>
+      <h3>Published updates</h3>
+      <p class="stats__legend">Each dashed line on the chart is a moment an editor approved and published a version.</p>
+      <div class="stats__table-wrap">
+        <table class="stats__table">
+          <thead><tr><th>#</th><th>Published</th><th>Approved by</th><th>Views before</th><th>Views after</th><th>Change</th></tr></thead>
+          <tbody id="stats-updates"></tbody>
+        </table>
+      </div>
+      <p class="review__empty" id="stats-no-updates" hidden>This article has no published versions.</p>
+    </section>
+  </main>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
+  <script src="/front/analytics.js" defer></script>
+</body>
+</html>
