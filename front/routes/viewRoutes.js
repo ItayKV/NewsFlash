@@ -12,6 +12,7 @@ router.get('/reporter', requirePageRole(RoleEnum.REPORTER), reporterController.r
 router.get('/reporter/articles', requireRole(RoleEnum.REPORTER), reporterController.renderReporterArticles);
 router.get('/reporter/articles/new', requirePageRole(RoleEnum.REPORTER), reporterController.renderEditArticlePage);
 router.get('/reporter/articles/:id/edit', requirePageRole(RoleEnum.REPORTER), reporterController.renderEditArticlePage);
+router.get('/reporter/articles/:id/view', requirePageRole(RoleEnum.REPORTER), reporterController.renderDraftPage);
 router.get('/articles/:id', articleControllers.renderArticlePage);
 
 module.exports = router;
