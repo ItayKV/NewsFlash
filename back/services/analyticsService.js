@@ -58,7 +58,7 @@ function toSeries(hourlyBuckets, from, to, bucket) {
 /**
  * The data of the Impact Analytics chart: views per bucket over the last `days` days, and every published
  * update with the views in the `windowHours` hours before it and after it (the same length on both sides, so
- * the two numbers can be compared). The window after a recent update is cut at `now`.
+ * the two numbers can be compared). The window after a recent update is cut at `now`, and then it is not comparable to the window before.
  */
 async function getArticleImpact(articleId, { days, bucket, windowHours, now = new Date() }) {
   const to = new Date(startOfHour(now).getTime() + HOUR_IN_MS);
@@ -73,7 +73,7 @@ async function getArticleImpact(articleId, { days, bucket, windowHours, now = ne
   const updates = await Promise.all(
     revisions.map(async ({ publishedAt, approvedBy }) => {
       const windowMs = windowHours * HOUR_IN_MS;
-      const after = Math.min(publishedAt.getTime() + windowMs, to.getTime());
+      const after = Math.min(publishedAt.getTime() + windowMs, now.getTime());
       const [viewsBefore, viewsAfter] = await Promise.all([
         sumViews(articleId, new Date(publishedAt.getTime() - windowMs), publishedAt),
         sumViews(articleId, publishedAt, new Date(after)),
@@ -83,8 +83,9 @@ async function getArticleImpact(articleId, { days, bucket, windowHours, now = ne
         approvedBy: approvedBy ? approvedBy.name : null,
         viewsBefore,
         viewsAfter,
-        // How many hours the "after" number covers (less than the window for a very recent update).
-        hoursAfter: Math.max(0, Math.round((after - publishedAt.getTime()) / HOUR_IN_MS)),
+        // How many hours the "after" number covers (less than the window for a recent update).
+        hoursAfter: Math.max(0, Math.floor((after - publishedAt.getTime()) / HOUR_IN_MS)),
+        isAfterWindowComplete: after - publishedAt.getTime() >= windowMs,
       };
     })
   );

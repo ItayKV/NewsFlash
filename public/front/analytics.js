@@ -80,17 +80,19 @@ document.addEventListener('DOMContentLoaded', () => {
     return found;
   }
 
-  function renderUpdates(updates) {
+  function renderUpdates(updates, windowHours) {
+    document.getElementById('stats-window').textContent = `${windowHours} hours`;
     const body = document.getElementById('stats-updates');
     body.replaceChildren();
     document.getElementById('stats-no-updates').hidden = updates.length > 0;
 
     updates.forEach((update, index) => {
       const row = body.insertRow();
-      const change = update.viewsBefore > 0
+      // A change is only meaningful when both windows have the same length.
+      const change = update.isAfterWindowComplete && update.viewsBefore > 0
         ? `${Math.round(((update.viewsAfter - update.viewsBefore) / update.viewsBefore) * 100)}%`
         : '–';
-      const afterNote = update.hoursAfter < 1 ? ' (just published)' : '';
+      const afterNote = update.isAfterWindowComplete ? '' : ` (${update.hoursAfter}h so far)`;
       [index + 1, dateTimeFormat.format(new Date(update.publishedAt)), update.approvedBy || 'Unknown',
         update.viewsBefore, `${update.viewsAfter}${afterNote}`, change]
         .forEach((value) => { row.insertCell().textContent = value; });
@@ -153,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('stats-title').textContent = impact.title || 'Untitled';
       document.getElementById('stats-total').textContent = `${impact.totalViews.toLocaleString('en-GB')} views in total`;
       renderChart(impact);
-      renderUpdates(impact.updates);
+      renderUpdates(impact.updates, impact.windowHours);
     } catch (err) {
       if (requestId !== chartRequestId) return;
       chartSection.hidden = false;
