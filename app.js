@@ -3,11 +3,11 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const { visitorAuthenticationMiddleware } = require('./back/middleware/visitorAuthentication');
 const { sessionMiddleware } = require('./back/config/session');
+const viewRoutes = require('./front/routes/viewRoutes');
 const userRoutes = require('./back/routes/userRoutes');
 const articleRoutes = require('./back/routes/articleRoutes');
 const weatherRoutes = require('./back/routes/weatherRoutes');
 const userService = require('./back/services/userService');
-const weatherService = require('./back/services/weatherService');
 const { HTTP_STATUS } = require('./back/config/constants');
 const { RoleEnum } = require('./back/models/User');
 const { requirePageRole } = require('./back/middleware/rbac');
@@ -29,11 +29,6 @@ app.use((req, res, next) => {
   res.locals.currentUser = req.session.userId ? { id: req.session.userId, role: req.session.role } : null;
   res.locals.RoleEnum = RoleEnum;
   next();
-});
-
-app.get('/', (req, res) => {
-  const weather = weatherService.getCurrentWeather();
-  res.render('pages/home', { weather });
 });
 
 app.get('/login', (req, res) => {
@@ -79,6 +74,7 @@ app.get('/editor', requirePageRole(RoleEnum.EDITOR), async (req, res, next) => {
   }
 });
 
+app.use(viewRoutes);
 app.use(userRoutes);
 app.use('/api/articles', articleRoutes);
 app.use(weatherRoutes);

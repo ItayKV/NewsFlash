@@ -3,14 +3,12 @@ const controller = require('../controllers/articleController');
 const { requireRole, requireOwnerOrRole } = require('../middleware/rbac');
 const { RoleEnum } = require('../models/User');
 
-// Mounted at /api/articles in app.js.
 const router = express.Router();
 
+router.get('/', controller.listPublicArticles);
 router.post('/', requireRole(RoleEnum.REPORTER), controller.createArticle);
-// Before the /:id routes, so "my-articles" is not read as an id.
-router.get('/my-articles', requireRole(RoleEnum.REPORTER), controller.listReporterArticles);
-router.get('/', requireRole(RoleEnum.EDITOR), controller.listEditorArticles);
-// An editor, or the reporter who created the article.
+router.get('/reporter', requireRole(RoleEnum.REPORTER), controller.listReporterArticles);
+router.get('/editor', requireRole(RoleEnum.EDITOR), controller.listEditorArticles);
 router.post('/:id/edit', requireOwnerOrRole(RoleEnum.EDITOR), controller.startEditing);
 router.patch('/:id/draft', requireOwnerOrRole(RoleEnum.EDITOR), controller.saveDraft);
 router.post('/:id/submit', requireOwnerOrRole(RoleEnum.EDITOR), controller.submitForApproval);

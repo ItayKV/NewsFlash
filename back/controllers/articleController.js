@@ -2,6 +2,7 @@ const articleService = require('../services/articleService');
 const { HTTP_STATUS } = require('../config/constants');
 const articleValidators = require('../validators/articleValidators');
 const { presentableStatus } = require('../utils/articleUtils');
+const { serializeArticlesPage } = require('../serializers/articleSerializers');
 const { RoleEnum } = require('../models/User');
 const { ArticleStatusEnum, CONTENT_FIELDS, isEmpty, getMissingFields } = require('../models/Article');
 
@@ -93,6 +94,26 @@ async function sendArticlePage(res, filter, pagination, includeAuthorName) {
     total,
     totalPages: Math.ceil(total / pagination.limit),
   });
+}
+
+/** The public feed (one page): published articles, newest publication first. Open to everyone. */
+async function listPublicArticles(req, res, next) {
+  try {
+    const pagination = articleValidators.parsePagination(req.query);
+    if (pagination.error) return sendError(res, invalidRequest(pagination.error));
+
+    const { articles, total } = await articleService.findPublicArticlePage(pagination);
+
+    res.status(HTTP_STATUS.OK).json({
+      items: serializeArticlesPage(articles),
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+      totalPages: Math.ceil(total / pagination.limit),
+    });
+  } catch (err) {
+    next(err);
+  }
 }
 
 /** A reporter creates a new article with its first (empty) draft. */
@@ -299,6 +320,7 @@ async function deleteArticle(req, res, next) {
 }
 
 module.exports = {
+  listPublicArticles,
   createArticle,
   listReporterArticles,
   listEditorArticles,
