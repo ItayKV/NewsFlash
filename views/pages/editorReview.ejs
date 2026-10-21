@@ -47,6 +47,9 @@
         <% if (canEdit) { %>
           <a class="review__button" href="/editor/articles/<%= article.id %>/edit">Edit</a>
         <% } %>
+        <% if (!isNew) { %>
+          <a class="review__button" href="/editor/stats?article=<%= article.id %>">Analytics</a>
+        <% } %>
         <button type="button" class="review__button review__button--danger" id="delete-button">Delete</button>
       </div>
       <% if (isPending) { %>

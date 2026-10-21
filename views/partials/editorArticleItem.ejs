@@ -9,7 +9,7 @@
   // The title being worked on; a published article has no draft, so its live title.
   const title = article.draftTitle || article.publishedTitle || 'Untitled';
 %>
-<li class="dashboard__item">
+<li class="dashboard__item" data-article-id="<%= article.id %>">
   <a class="dashboard__title dashboard__link" href="/editor/articles/<%= article.id %>"><%= title %></a>
   <span class="dashboard__meta">by <%= article.authorName || 'Unknown' %></span>
   <time class="dashboard__meta" datetime="<%= new Date(article.updatedAt).toISOString() %>">
