@@ -9,9 +9,14 @@
 </head>
 <body>
   <%- include('../components/header') %>
-  <main>
-    <%- include('../components/feed', { articles, hasMore }) %>
-  </main>
+  <div class="home-layout">
+    <main class="landing">
+      <%- include('../components/feed', { articles, hasMore }) %>
+    </main>
+    <aside class="sidebar">
+      <%- include('../components/weatherWidget', { weather }) %>
+    </aside>
+  </div>
   <script src="/front/feed.js" defer></script>
 </body>
 </html>

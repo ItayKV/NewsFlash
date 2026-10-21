@@ -1,0 +1,12 @@
+<% if (weather) { %>
+  <div class="weather-widget__content" id="weather-widget-content">
+    <span class="weather-widget__icon-frame">
+      <img class="weather-widget__icon" src="https://openweathermap.org/img/wn/<%= weather.icon %>@2x.png" alt="<%= weather.description %>">
+    </span>
+    <p class="weather-widget__temp"><%= weather.temperature %>&deg;C</p>
+    <p class="weather-widget__desc"><%= weather.description %></p>
+    <p class="weather-widget__city"><%= weather.city %></p>
+  </div>
+<% } else { %>
+  <p class="weather-widget__error" id="weather-widget-content">Weather unavailable</p>
+<% } %>
