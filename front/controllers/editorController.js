@@ -111,4 +111,15 @@ async function renderEditPage(req, res, next) {
   }
 }
 
-module.exports = { renderEditorPage, renderEditorArticles, renderReviewPage, renderEditPage };
+/** The Impact Analytics page. An article can be chosen with ?article=<id>; the page loads its chart by itself. */
+async function renderStatsPage(req, res, next) {
+  try {
+    const { article } = req.query;
+    const selectedArticleId = articleValidators.isValidArticleId(article) ? article : '';
+    res.render('pages/stats', { selectedArticleId });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { renderEditorPage, renderEditorArticles, renderReviewPage, renderEditPage, renderStatsPage };

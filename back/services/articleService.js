@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Article = require('../models/Article');
 const ArticleRevision = require('../models/ArticleRevision');
+const ArticleViewLog = require('../models/ArticleViewLog');
 const userService = require('./userService');
 const { MONGO_DUPLICATE_KEY_ERROR } = require('../config/constants');
 
@@ -137,8 +138,9 @@ function publishDraftRevision({ article, draftRevision, approvedBy, publishedAt 
   });
 }
 
-/** Deletes the article and its revisions. The article goes last, so a failed delete can be repeated. */
+/** Deletes the article with its revisions and view data. The article goes last, so a failed delete can be repeated. */
 async function deleteArticleWithRevisions(articleId) {
+  await ArticleViewLog.deleteMany({ article: articleId });
   await ArticleRevision.deleteMany({ article: articleId });
   await Article.deleteOne({ _id: articleId });
 }
@@ -171,6 +173,14 @@ function findPublishedRevisions(articleId) {
     .sort({ publishedAt: 1 })
     .select('publishedAt approvedBy -_id')
     .lean();
+}
+
+/** The editor's list filter: one status and/or a title (the live one) containing the search text. */
+function buildEditorFilter({ status = null, search = null } = {}) {
+  const filter = {};
+  if (status) filter.status = status;
+  if (search) filter['content.title'] = new RegExp(escapeRegex(search), 'i');
+  return filter;
 }
 
 /** The draft titles of the given articles, as a Map of article id -> title (articles without a draft are absent). */
@@ -236,6 +246,7 @@ module.exports = {
   publishDraftRevision,
   deleteArticleWithRevisions,
   findArticlePage,
+  buildEditorFilter,
   findDraftTitles,
   findAuthorArticles,
   findPublicArticlePage,

@@ -13,6 +13,7 @@ router.get('/reporter', requirePageRole(RoleEnum.REPORTER), reporterController.r
 router.get('/reporter/articles', requireRole(RoleEnum.REPORTER), reporterController.renderReporterArticles);
 router.get('/editor', requirePageRole(RoleEnum.EDITOR), editorController.renderEditorPage);
 router.get('/editor/articles', requireRole(RoleEnum.EDITOR), editorController.renderEditorArticles);
+router.get('/editor/stats', requirePageRole(RoleEnum.EDITOR), editorController.renderStatsPage);
 router.get('/editor/articles/:id', requirePageRole(RoleEnum.EDITOR), editorController.renderReviewPage);
 router.get('/editor/articles/:id/edit', requirePageRole(RoleEnum.EDITOR), editorController.renderEditPage);
 router.get('/articles/:id', articleControllers.renderArticlePage);
