@@ -13,13 +13,6 @@ process.on('unhandledRejection', (err) => {
   console.error('Unhandled rejection:', err.message || err);
 });
 
-// Log an uncaught exception, then exit with a non-zero code so the crash
-// is still reported as a failure.
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught exception:', err);
-  process.exit(1);
-});
-
 // Fire-and-forget: DB connection attempts run in parallel with the
 // HTTP server starting, and never block or crash startup on failure.
 connectDB();
