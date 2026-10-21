@@ -8,6 +8,7 @@ const HTTP_STATUS = Object.freeze({
   NOT_FOUND: 404,
   CONFLICT: 409,
   INTERNAL_SERVER_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503,
 });
 
 // MongoDB duplicate key error code.

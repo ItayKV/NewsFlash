@@ -1,4 +1,5 @@
 const articleService = require('../../back/services/articleService');
+const weatherService = require('../../back/services/weatherService');
 const articleValidators = require('../../back/validators/articleValidators');
 const { HTTP_STATUS } = require('../../back/config/constants');
 const { serializeArticlesPage, serializeArticle } =require('../../back/serializers/articleSerializers');
@@ -21,7 +22,8 @@ async function renderHomePage(req, res, next) {
   try {
     const pagination = articleValidators.parsePagination({});
     const { articles, hasMore } = await findFeedPage(pagination);
-    res.render('pages/home', { articles, hasMore, categories: ARTICLE_CATEGORIES });
+    const weather = weatherService.getCurrentWeather();
+    res.render('pages/home', { articles, hasMore, categories: ARTICLE_CATEGORIES, weather });
   } catch (err) {
     next(err);
   }

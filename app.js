@@ -6,6 +6,7 @@ const { sessionMiddleware } = require('./back/config/session');
 const viewRoutes = require('./front/routes/viewRoutes');
 const userRoutes = require('./back/routes/userRoutes');
 const articleRoutes = require('./back/routes/articleRoutes');
+const weatherRoutes = require('./back/routes/weatherRoutes');
 const userService = require('./back/services/userService');
 const { HTTP_STATUS } = require('./back/config/constants');
 const { RoleEnum } = require('./back/models/User');
@@ -76,6 +77,7 @@ app.get('/editor', requirePageRole(RoleEnum.EDITOR), async (req, res, next) => {
 app.use(viewRoutes);
 app.use(userRoutes);
 app.use('/api/articles', articleRoutes);
+app.use(weatherRoutes);
 
 // Minimal JSON error handler. Malformed JSON -> 400. Other request errors raised by Express and its middleware
 // (a bad URL, a too large body, an unsupported charset or encoding) already carry their own 4xx status: it is
