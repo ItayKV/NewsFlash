@@ -8,7 +8,6 @@ const userRoutes = require('./back/routes/userRoutes');
 const articleRoutes = require('./back/routes/articleRoutes');
 const weatherRoutes = require('./back/routes/weatherRoutes');
 const userService = require('./back/services/userService');
-const weatherService = require('./back/services/weatherService');
 const { HTTP_STATUS } = require('./back/config/constants');
 const { RoleEnum } = require('./back/models/User');
 const { requirePageRole } = require('./back/middleware/rbac');
@@ -30,11 +29,6 @@ app.use((req, res, next) => {
   res.locals.currentUser = req.session.userId ? { id: req.session.userId, role: req.session.role } : null;
   res.locals.RoleEnum = RoleEnum;
   next();
-});
-
-app.get('/', (req, res) => {
-  const weather = weatherService.getCurrentWeather();
-  res.render('pages/home', { weather });
 });
 
 app.get('/login', (req, res) => {
