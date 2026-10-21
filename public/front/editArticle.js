@@ -2,6 +2,9 @@
 // the changed fields to the draft (text fields after a pause, the others at once).
 const DEBOUNCE_MS = 3000;
 const TEXT_FIELDS = ['title', 'summary', 'body'];
+const CONTENT_FIELDS = ['title', 'summary', 'body', 'imageUrl', 'category'];
+const TRIMMED_FIELDS = ['title', 'summary', 'imageUrl']; // stored trimmed by the server
+const NO_CHANGES_MESSAGE = 'No changes made';
 
 const form = document.getElementById('article-form');
 const saveState = document.getElementById('save-state');
@@ -14,14 +17,36 @@ let pendingChanges = {}; // fields changed and not saved yet
 let debounceTimer = null;
 let creatingArticle = null; // the in-flight POST /api/articles, so two quick changes create one article
 let saveQueue = Promise.resolve(); // saves run one after the other, never two PATCHes at once
+let liveContent = {}; // the published version the draft is compared to (empty for a never-published article)
 
 function showState(message, isError = false) {
   saveState.textContent = message;
   saveState.classList.toggle('edit-form__state--error', isError);
 }
 
+/** A content value as the server stores it, so the form and the live content compare equal. */
+function normalizeContentValue(field, value) {
+  const text = value ?? '';
+  return TRIMMED_FIELDS.includes(field) ? text.trim() : text;
+}
+
+/** True when the form differs from the live content. */
+function hasChangesFromLive() {
+  return CONTENT_FIELDS.some(
+    (field) => normalizeContentValue(field, form.elements[field].value) !== normalizeContentValue(field, liveContent[field])
+  );
+}
+
+/** Submitting is allowed only when the draft differs from the live content; the hover says why it is not. */
+function updateSubmitButton() {
+  const hasChanges = hasChangesFromLive();
+  submitButton.disabled = !hasChanges;
+  submitButton.title = hasChanges ? '' : NO_CHANGES_MESSAGE;
+}
+
 function setFormEnabled(enabled) {
   for (const control of form.elements) control.disabled = !enabled;
+  if (enabled) updateSubmitButton();
 }
 
 /** Sends a JSON request. Returns { status, data } (data is null when there is no body), or null on a network failure. */
@@ -44,6 +69,7 @@ const isSuccess = (result) => result !== null && result.status >= 200 && result.
 const errorMessage = (result) => result?.data?.error || 'Could not reach the server';
 
 function fillForm(article) {
+  liveContent = article.content || {};
   for (const [field, value] of Object.entries(article.draft || {})) {
     if (form.elements[field]) form.elements[field].value = value ?? '';
   }
@@ -125,6 +151,7 @@ function onFieldChange(event) {
 
   pendingChanges[name] = value;
   showState('Unsaved changes…');
+  updateSubmitButton();
   if (!articleId) ensureArticleId(); // a new article is created on its first change
 
   clearTimeout(debounceTimer);
@@ -146,6 +173,8 @@ function flushPendingChanges() {
 
 async function submitForApproval(event) {
   event.preventDefault();
+  if (!hasChangesFromLive()) return showState(NO_CHANGES_MESSAGE, true);
+
   clearTimeout(debounceTimer);
   submitButton.disabled = true;
 
@@ -158,7 +187,7 @@ async function submitForApproval(event) {
     if (isSuccess(result)) return (window.location.href = '/reporter');
     showState(errorMessage(result), true);
   }
-  submitButton.disabled = false;
+  updateSubmitButton();
 }
 
 form.addEventListener('input', (event) => {
@@ -178,3 +207,4 @@ window.addEventListener('beforeunload', (event) => {
 });
 
 if (articleId) loadArticle();
+else updateSubmitButton(); // a new, empty article has no changes yet
