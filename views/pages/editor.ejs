@@ -5,15 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Review Queue - The Daily Web</title>
   <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
 </head>
 <body>
   <%- include('../components/header') %>
   <main class="dashboard">
     <h1>Hello <%= editorName %>!</h1>
-    <h4 class="dashboard__subtitle">Here are the articles awaiting your review:</h4>
-    <ul class="dashboard__list" id="editor-articles">
-      <%- include('../partials/editorArticleList', { articles }) %>
-    </ul>
+    <h4 class="dashboard__subtitle">Review the articles by status:</h4>
+    <nav class="dashboard__filters" id="editor-filters" aria-label="Filter articles by status">
+      <button type="button" class="dashboard__filter dashboard__filter--active" data-status="pending_approval">Pending Approval</button>
+      <button type="button" class="dashboard__filter" data-status="returned_for_revision">Returned for Revision</button>
+      <button type="button" class="dashboard__filter" data-status="in_progress">In Progress</button>
+      <button type="button" class="dashboard__filter" data-status="published">Published</button>
+      <button type="button" class="dashboard__filter" data-status="">All</button>
+    </nav>
+    <ul class="dashboard__list" id="editor-articles"></ul>
+    <p class="dashboard__message" id="editor-articles-status" role="status">Loading…</p>
+    <button type="button" class="dashboard__more" id="editor-load-more" hidden>Load more</button>
   </main>
+  <script src="/front/editor.js" defer></script>
 </body>
 </html>
