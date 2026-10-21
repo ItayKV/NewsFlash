@@ -9,6 +9,7 @@ router.get('/', controller.listPublicArticles);
 router.post('/', requireRole(RoleEnum.REPORTER), controller.createArticle);
 router.get('/reporter', requireRole(RoleEnum.REPORTER), controller.listReporterArticles);
 router.get('/editor', requireRole(RoleEnum.EDITOR), controller.listEditorArticles);
+router.get('/:id', requireRole(RoleEnum.EDITOR), controller.getArticleForReview);
 router.post('/:id/edit', requireOwnerOrRole(RoleEnum.EDITOR), controller.startEditing);
 router.patch('/:id/draft', requireOwnerOrRole(RoleEnum.EDITOR), controller.saveDraft);
 router.post('/:id/submit', requireOwnerOrRole(RoleEnum.EDITOR), controller.submitForApproval);

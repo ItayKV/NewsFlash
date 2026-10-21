@@ -1,0 +1,108 @@
+<%
+  const statusLabels = {
+    in_progress: 'In Progress',
+    pending_approval: 'Pending Approval',
+    published: 'Published',
+    returned_for_revision: 'Returned for Revision',
+  };
+  const formatDate = (date) => new Date(date).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+  const isPending = article.status === ArticleStatusEnum.PENDING_APPROVAL;
+  const hasChanges = fields.some((field) => field.isChanged);
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review: <%= title %> - The Daily Web</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+  <%- include('../components/header') %>
+  <main class="review" id="review" data-article-id="<%= article.id %>">
+    <a class="review__back" href="/editor">&larr; Back to the review queue</a>
+    <h1 class="review__title"><%= title %></h1>
+    <p class="review__meta">
+      <span class="dashboard__status dashboard__status--<%= { in_progress: 'progress', pending_approval: 'pending', published: 'published', returned_for_revision: 'returned' }[article.status] %>"><%= statusLabels[article.status] %></span>
+      by <%= article.author.name %> · last change <time datetime="<%= new Date(article.updatedAt).toISOString() %>"><%= formatDate(article.updatedAt) %></time>
+    </p>
+
+    <% if (article.status === ArticleStatusEnum.RETURNED_FOR_REVISION && article.editorNotes.length) { %>
+      <section class="review__notes" aria-label="Editor notes">
+        <h2>Notes sent to the reporter</h2>
+        <ul>
+          <% article.editorNotes.forEach((note) => { %><li><%= note %></li><% }) %>
+        </ul>
+      </section>
+    <% } %>
+
+    <section class="review__actions" aria-label="Actions">
+      <p class="review__error" id="review-error" role="alert"></p>
+      <div class="review__buttons">
+        <% if (isPending) { %>
+          <button type="button" class="review__button review__button--primary" id="approve-button">Approve &amp; Publish</button>
+          <button type="button" class="review__button" id="return-toggle">Return for revision…</button>
+        <% } %>
+        <% if (canEdit) { %>
+          <a class="review__button" href="/editor/articles/<%= article.id %>/edit">Edit</a>
+        <% } %>
+        <button type="button" class="review__button review__button--danger" id="delete-button">Delete</button>
+      </div>
+      <% if (isPending) { %>
+        <form class="review__return" id="return-form" hidden>
+          <label for="return-notes">What should the reporter fix? One note per line (required).</label>
+          <textarea id="return-notes" rows="4" maxlength="5000" required></textarea>
+          <button type="submit" class="review__button review__button--primary">Send back to the reporter</button>
+        </form>
+      <% } %>
+    </section>
+
+    <% if (!hasDraft) { %>
+      <p class="review__info">This article is published and has no pending changes. This is the live version:</p>
+      <% publishedFields.forEach((field) => { %>
+        <section class="review__field">
+          <h3 class="review__field-title"><%= field.label %></h3>
+          <div class="review__text">
+            <% if (!field.text) { %><p class="review__empty">(empty)</p>
+            <% } else { field.text.split(/\n{2,}/).forEach((paragraph) => { %><p><%= paragraph %></p><% }) } %>
+          </div>
+        </section>
+      <% }) %>
+    <% } else if (isNew) { %>
+      <p class="review__info">This article was never published. This is the submitted draft:</p>
+      <% fields.forEach((field) => { %>
+        <section class="review__field">
+          <h3 class="review__field-title"><%= field.label %></h3>
+          <div class="review__text">
+            <% if (!field.draft.length) { %><p class="review__empty">(empty)</p>
+            <% } else { field.draft.forEach((paragraph) => { %><p><%= paragraph.map((segment) => segment.text).join(' ') %></p><% }) } %>
+          </div>
+        </section>
+      <% }) %>
+    <% } else { %>
+      <p class="review__info">
+        <% if (hasChanges) { %>The live version is on the left, the draft on the right. <mark class="diff diff--removed">Removed</mark> and <mark class="diff diff--added">added</mark> words are marked.
+        <% } else { %>The draft is identical to the live version.<% } %>
+      </p>
+      <% fields.forEach((field) => { %>
+        <%- include('../partials/editorDiffField', { field }) %>
+      <% }) %>
+    <% } %>
+
+    <section class="review__history" aria-label="Published versions">
+      <h2>Published versions</h2>
+      <% if (!revisions.length) { %>
+        <p class="review__empty">None yet.</p>
+      <% } else { %>
+        <ol>
+          <% revisions.forEach((revision) => { %>
+            <li><time datetime="<%= new Date(revision.publishedAt).toISOString() %>"><%= formatDate(revision.publishedAt) %></time> · approved by <%= revision.approvedBy ? revision.approvedBy.name : 'unknown' %></li>
+          <% }) %>
+        </ol>
+      <% } %>
+    </section>
+  </main>
+  <script src="/front/editorReview.js" defer></script>
+</body>
+</html>

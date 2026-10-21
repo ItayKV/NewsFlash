@@ -16,4 +16,12 @@ function serializeArticle(article) {
   return { ...serializeArticlesPage([article])[0], body: article.content.body };
 }
 
-module.exports = { serializeArticlesPage, serializeArticle };
+/** Turns lean articles into reporter list rows: the status and the published title only ('' = never published). */
+function serializeReporterArticles(articles) {
+  return articles.map((article) => ({
+    title: article.content?.title || '',
+    status: article.status,
+  }));
+}
+
+module.exports = { serializeArticlesPage, serializeArticle, serializeReporterArticles };
