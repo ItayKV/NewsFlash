@@ -5,6 +5,7 @@ const { DEFAULT_PAGE, MAX_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } = require('..
 const TITLE_MAX_LENGTH = 120;
 const SUMMARY_MAX_LENGTH = 500;
 const BODY_MAX_LENGTH = 50000;
+const SEARCH_MAX_LENGTH = 100;
 const EDITOR_NOTE_MAX_LENGTH = 1000;
 const EDITOR_NOTES_MAX_COUNT = 20;
 
@@ -87,6 +88,23 @@ function parsePagination(query) {
 }
 
 /**
+ * Parses the feed's `search` and `category` query parameters. Both are optional; empty means "no filter".
+ * Returns { search, category } (null when not given) or { error } with a message.
+ */
+function parseFeedFilters(query) {
+  const { search, category } = query || {};
+
+  if (search && (!isString(search) || search.trim().length > SEARCH_MAX_LENGTH)) {
+    return { error: `Search must be text of up to ${SEARCH_MAX_LENGTH} characters` };
+  }
+  if (category && !isValidCategory(category)) {
+    return { error: `Category must be one of: ${ARTICLE_CATEGORIES.join(', ')}` };
+  }
+
+  return { search: search ? search.trim() || null : null, category: category || null };
+}
+
+/**
  * Checks the editor's notes of a return: a list of 1 to EDITOR_NOTES_MAX_COUNT notes, each a non-empty text
  * of up to EDITOR_NOTE_MAX_LENGTH characters. Returns an error message, or null when the notes are valid.
  */
@@ -110,5 +128,6 @@ module.exports = {
   isValidArticleId,
   getContentError,
   parsePagination,
+  parseFeedFilters,
   getEditorNotesError,
 };
