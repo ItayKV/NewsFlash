@@ -92,6 +92,10 @@ document.addEventListener('DOMContentLoaded', () => {
     search();
   });
   searchForm.elements.category.addEventListener('change', search);
+  // The browser's clear (x) button fires "search" with an empty value; the category is kept.
+  searchForm.elements.search.addEventListener('search', (event) => {
+    if (!event.target.value) search();
+  });
   searchForm.addEventListener('input', updateResetButton);
   resetButton.addEventListener('click', () => {
     searchForm.reset();
