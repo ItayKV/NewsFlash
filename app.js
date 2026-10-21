@@ -35,6 +35,16 @@ app.get('/login', (req, res) => {
   res.render('pages/login');
 });
 
+// TODO: replace with a real lookup of this reporter's articles once the Article model exists.
+function findReporterArticles() {
+  return [
+    { title: 'City Council Approves New Park Budget', status: 'published' },
+    { title: 'Local Startup Raises Series A Funding', status: 'pending_approval' },
+    { title: 'Weather Patterns Shift Ahead of Fall', status: 'in_progress' },
+    { title: 'School District Announces Budget Cuts', status: 'returned_for_revision' },
+  ];
+}
+
 // TODO: replace with a real lookup of articles pending review once the Article model exists.
 function findReviewQueueArticles() {
   return [
@@ -44,7 +54,17 @@ function findReviewQueueArticles() {
   ];
 }
 
-// The editor's list is rendered into the page itself, so the first response already contains it.
+// The article lists are rendered into the page itself, so the first response
+// already contains them and no second request is needed.
+app.get('/reporter', requirePageRole(RoleEnum.REPORTER), async (req, res, next) => {
+  try {
+    const reporter = await userService.findById(req.session.userId);
+    res.render('pages/reporter', { reporterName: reporter.name, articles: findReporterArticles() });
+  } catch (err) {
+    next(err);
+  }
+});
+
 app.get('/editor', requirePageRole(RoleEnum.EDITOR), async (req, res, next) => {
   try {
     const editor = await userService.findById(req.session.userId);
