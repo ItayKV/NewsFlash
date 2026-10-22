@@ -44,9 +44,30 @@ function parseCommentSearch(query) {
   return { search: search ? search.trim() || null : null, articleId: articleId || null };
 }
 
+// A "load more" cursor marks the oldest comment already shown: its creation time and its id, e.g.
+// '2026-10-22T10:15:00.000Z_3f2a8c1e-…'. The server makes it (see the comment serializers).
+const CURSOR_PATTERN = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z)_(.+)$/;
+
+/**
+ * Parses the optional `before` query parameter (a cursor). Returns { before } with { createdAt, id }
+ * (null when not given), or { error } with a message.
+ */
+function parseCommentCursor(query) {
+  const { before } = query || {};
+  if (!before) return { before: null };
+
+  const cursorParts = isString(before) ? CURSOR_PATTERN.exec(before) : null;
+  const createdAt = cursorParts ? new Date(cursorParts[1]) : null;
+  if (!cursorParts || Number.isNaN(createdAt.getTime()) || !isValidCommentId(cursorParts[2])) {
+    return { error: 'Invalid cursor' };
+  }
+  return { before: { createdAt, id: cursorParts[2] } };
+}
+
 module.exports = {
   isValidCommentId,
   getCommentTextError,
   getGuestNameError,
   parseCommentSearch,
+  parseCommentCursor,
 };

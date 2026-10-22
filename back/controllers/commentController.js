@@ -4,7 +4,11 @@ const { HTTP_STATUS } = require('../config/constants');
 const articleValidators = require('../validators/articleValidators');
 const commentValidators = require('../validators/commentValidators');
 const { getCommentViewer, canEditComment, canDeleteComment } = require('../utils/commentUtils');
-const { serializeComment, serializeCommentForViewer } = require('../serializers/commentSerializers');
+const {
+  serializeComment,
+  serializeCommentForViewer,
+  serializeArticleComments,
+} = require('../serializers/commentSerializers');
 
 // The controller validates the input and applies the permission rules (commentUtils); the service only talks
 // to the database. Expected failures are returned as { status, message }, not thrown. Comments can be read and
@@ -29,22 +33,28 @@ function sendCommentPage(res, items, pagination, total) {
   });
 }
 
-/** The comments of one public article (one page, newest first), each with what the viewer may do with it. */
+/**
+ * A batch of one public article's comments (newest first, `limit` of them), each with what the viewer may do
+ * with it, and `nextCursor`. The next batch is asked for with ?before=<nextCursor>; it is null when no older
+ * comments are left. (A cursor rather than a page number: comments added or deleted meanwhile do not make the
+ * next batch repeat or skip comments.)
+ */
 async function listArticleComments(req, res, next) {
   try {
     const { articleId } = req.params;
     if (!articleValidators.isValidArticleId(articleId)) return sendError(res, invalidRequest('Invalid article id'));
 
-    const pagination = articleValidators.parsePagination(req.query);
-    if (pagination.error) return sendError(res, invalidRequest(pagination.error));
+    const { limit, error: limitError } = articleValidators.parsePagination(req.query);
+    if (limitError) return sendError(res, invalidRequest(limitError));
+
+    const cursor = commentValidators.parseCommentCursor(req.query);
+    if (cursor.error) return sendError(res, invalidRequest(cursor.error));
 
     const article = await articleService.findPublicArticleById(articleId);
     if (!article) return sendError(res, articleNotFound());
 
-    const { comments, total } = await commentService.findCommentPage(pagination, { articleId });
-    const viewer = getCommentViewer(req);
-    const items = comments.map((comment) => serializeCommentForViewer(comment, viewer, article.author.id));
-    sendCommentPage(res, items, pagination, total);
+    const commentBatch = await commentService.findArticleComments(articleId, { limit, before: cursor.before });
+    res.status(HTTP_STATUS.OK).json(serializeArticleComments(commentBatch, getCommentViewer(req), article.author.id));
   } catch (err) {
     next(err);
   }

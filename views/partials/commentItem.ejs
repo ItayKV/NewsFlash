@@ -1,0 +1,28 @@
+<%# One comment. The article page also renders it once, empty, inside <template id="comment-template">, which
+    article.js fills for comments added or loaded on the page, so they look the same as the server-rendered ones.
+    Edit and Delete are rendered only when the server allows this viewer to use them (canEdit, canDelete). %>
+<li class="comment" data-comment-id="<%= comment.id %>">
+  <article>
+    <header class="comment__header">
+      <span class="comment__author"><%= comment.authorName %></span>
+      <time class="comment__time" datetime="<%= new Date(comment.createdAt).toISOString() %>">
+        <%= new Date(comment.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) %>
+      </time>
+      <span class="comment__edited"<%= comment.editedAt ? '' : ' hidden' %>>(edited)</span>
+    </header>
+    <p class="comment__text"><%= comment.text %></p>
+    <% if (comment.canEdit || comment.canDelete) { %>
+      <footer class="comment__footer">
+        <div class="comment__actions">
+          <% if (comment.canEdit) { %>
+            <button type="button" class="comment__action" data-action="edit">Edit</button>
+          <% } %>
+          <% if (comment.canDelete) { %>
+            <button type="button" class="comment__action comment__action--delete" data-action="delete">Delete</button>
+          <% } %>
+        </div>
+        <p class="comment__error" aria-live="polite"></p>
+      </footer>
+    <% } %>
+  </article>
+</li>

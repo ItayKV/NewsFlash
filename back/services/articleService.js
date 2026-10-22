@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Article = require('../models/Article');
 const ArticleRevision = require('../models/ArticleRevision');
+const Comment = require('../models/Comment');
 const userService = require('./userService');
 const { MONGO_DUPLICATE_KEY_ERROR } = require('../config/constants');
 const { escapeRegex } = require('../utils/regexUtils');
@@ -138,8 +139,13 @@ function publishDraftRevision({ article, draftRevision, approvedBy, publishedAt 
   });
 }
 
-/** Deletes the article and its revisions. The article goes last, so a failed delete can be repeated. */
-async function deleteArticleWithRevisions(articleId) {
+/**
+ * Deletes the article with everything that belongs to it: its comments and its revisions (CLAUDE.md 7.3).
+ * No transaction (7.10): the article goes last, so if a step fails the article still exists and the delete
+ * can simply be repeated.
+ */
+async function deleteArticleWithRelatedData(articleId) {
+  await Comment.deleteMany({ article: articleId });
   await ArticleRevision.deleteMany({ article: articleId });
   await Article.deleteOne({ _id: articleId });
 }
@@ -208,7 +214,7 @@ module.exports = {
   startArticleUpdate,
   saveDraftChanges,
   publishDraftRevision,
-  deleteArticleWithRevisions,
+  deleteArticleWithRelatedData,
   findArticlePage,
   findPublicArticlePage,
 };

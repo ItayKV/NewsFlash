@@ -27,4 +27,18 @@ function serializeCommentForViewer(comment, viewer, articleAuthorId) {
   };
 }
 
-module.exports = { serializeComment, serializeCommentForViewer };
+/** The cursor that asks for the comments older than this (serialized) one: its creation time and id. */
+function toCommentCursor(comment) {
+  return `${new Date(comment.createdAt).toISOString()}_${comment.id}`;
+}
+
+/**
+ * A batch of one article's comments for this viewer, and the cursor of the next (older) batch, or null when
+ * no older comments are left. Used by the article page and by the "load more" API.
+ */
+function serializeArticleComments({ comments, hasMore }, viewer, articleAuthorId) {
+  const items = comments.map((comment) => serializeCommentForViewer(comment, viewer, articleAuthorId));
+  return { items, nextCursor: hasMore ? toCommentCursor(items[items.length - 1]) : null };
+}
+
+module.exports = { serializeComment, serializeCommentForViewer, serializeArticleComments };
