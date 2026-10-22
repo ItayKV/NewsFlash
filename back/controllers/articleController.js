@@ -2,7 +2,7 @@ const articleService = require('../services/articleService');
 const { HTTP_STATUS } = require('../config/constants');
 const articleValidators = require('../validators/articleValidators');
 const { presentableStatus } = require('../utils/articleUtils');
-const { serializeArticlesPage } = require('../serializers/articleSerializers');
+const { serializeArticlesPage, serializeReporterArticles } = require('../serializers/articleSerializers');
 const { RoleEnum } = require('../models/User');
 const { ArticleStatusEnum, CONTENT_FIELDS, isEmpty, getMissingFields } = require('../models/Article');
 
@@ -68,27 +68,24 @@ function hasContentChanges(draftContent, contentChanges) {
 }
 
 /** Turns lean articles into list rows. The title is the published one (null = never published). */
-function toListItems(articles, includeAuthorName) {
-  return articles.map((article) => {
-    const listItem = {
-      id: article._id,
-      status: article.status,
-      publishedTitle: article.content?.title || null,
-      publishedAt: article.publishedAt || null,
-      updatedAt: article.updatedAt,
-      editorNotes: article.editorNotes || [],
-    };
-    if (includeAuthorName) listItem.authorName = article.author?.name || null;
-    return listItem;
-  });
+function toListItems(articles) {
+  return articles.map((article) => ({
+    id: article._id,
+    status: article.status,
+    publishedTitle: article.content?.title || null,
+    publishedAt: article.publishedAt || null,
+    updatedAt: article.updatedAt,
+    editorNotes: article.editorNotes || [],
+    authorName: article.author?.name || null,
+  }));
 }
 
 /** Sends one page of the articles matching the filter, with the paging details. */
-async function sendArticlePage(res, filter, pagination, includeAuthorName) {
+async function sendArticlePage(res, filter, pagination) {
   const { articles, total } = await articleService.findArticlePage(filter, pagination);
 
   res.status(HTTP_STATUS.OK).json({
-    items: toListItems(articles, includeAuthorName),
+    items: toListItems(articles),
     page: pagination.page,
     limit: pagination.limit,
     total,
@@ -129,13 +126,26 @@ async function createArticle(req, res, next) {
   }
 }
 
-/** The reporter's own articles (one page). */
+/** The reporter's own articles (one page), newest change first: only the status and the published title. */
 async function listReporterArticles(req, res, next) {
   try {
     const pagination = articleValidators.parsePagination(req.query);
     if (pagination.error) return sendError(res, invalidRequest(pagination.error));
 
-    await sendArticlePage(res, { 'author.id': req.session.userId }, pagination, false);
+    const { articles, total } = await articleService.findAuthorArticles(req.session.userId, pagination);
+
+    // Only unpublished articles show their draft's title.
+    const unpublishedIds = articles.filter((article) => article.status !== ArticleStatusEnum.PUBLISHED).map((article) => article._id);
+    const drafts = unpublishedIds.length ? await articleService.findDraftTitles(unpublishedIds) : [];
+    const draftTitles = new Map(drafts.map((draft) => [draft.article, draft.content?.title]));
+
+    res.status(HTTP_STATUS.OK).json({
+      items: serializeReporterArticles(articles, draftTitles),
+      page: pagination.page,
+      limit: pagination.limit,
+      total,
+      totalPages: Math.ceil(total / pagination.limit),
+    });
   } catch (err) {
     next(err);
   }
@@ -151,7 +161,7 @@ async function listEditorArticles(req, res, next) {
     if (pagination.error) return sendError(res, invalidRequest(pagination.error));
 
     const filter = status ? { status } : {};
-    await sendArticlePage(res, filter, pagination, true);
+    await sendArticlePage(res, filter, pagination);
   } catch (err) {
     next(err);
   }
@@ -198,7 +208,9 @@ async function saveDraft(req, res, next) {
     const article = await articleService.findArticleById(req.params.id);
     if (!article) return sendError(res, articleNotFound());
 
-    if (article.status !== ArticleStatusEnum.IN_PROGRESS) {
+    const canSave =
+      article.status === ArticleStatusEnum.IN_PROGRESS || article.status === ArticleStatusEnum.RETURNED_FOR_REVISION;
+    if (!canSave) {
       return sendError(res, invalidRequest(`Cannot save changes to an article that is ${presentableStatus(article.status)}`));
     }
 

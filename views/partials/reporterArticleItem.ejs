@@ -8,6 +8,6 @@
   const status = statusDisplay[article.status];
 %>
 <li class="dashboard__item">
-  <span class="dashboard__title"><%= article.title %></span>
+  <a class="dashboard__title" href="/reporter/articles/<%= article.id %>/edit"><%= article.title || 'Untitled' %></a>
   <span class="dashboard__status dashboard__status--<%= status.status_class %>"><%= status.label %></span>
 </li>
