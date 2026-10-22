@@ -3,6 +3,7 @@ const Article = require('../models/Article');
 const ArticleRevision = require('../models/ArticleRevision');
 const userService = require('./userService');
 const { MONGO_DUPLICATE_KEY_ERROR } = require('../config/constants');
+const { escapeRegex } = require('../utils/regexUtils');
 
 // Data access only (queries, updates, transactions); validation and business rules are in the controller.
 // A guarded update that matched nothing returns null.
@@ -170,8 +171,6 @@ const FEED_FIELDS = 'content.title content.summary content.imageUrl content.cate
 
 // An article is public once it was published for the first time (publishedAt is set with its first approval).
 const PUBLIC_FILTER = Object.freeze({ publishedAt: { $ne: null } });
-
-const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * One page of the public articles, newest publication first, and the total count. Optionally only one
