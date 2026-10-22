@@ -160,6 +160,7 @@ textarea.comment-form__input {
 }
 
 .comment {
+  position: relative; /* anchors the ⋮ menu in the top-right corner */
   background-color: #fff;
   padding: 0.85rem 1rem;
   border-radius: 8px;
@@ -223,19 +224,85 @@ textarea.comment-form__input {
   cursor: wait;
 }
 
-/* Comment edit and delete */
+/* Comment edit and delete: the ⋮ actions menu */
 
-.comment__footer {
-  margin-top: 0.4rem;
+.comment__header:has(.comment__menu) {
+  padding-right: 2.25rem; /* the author and time never run under the ⋮ button */
 }
 
-.comment__actions {
+.comment__menu {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.2rem;
+}
+
+.comment__menu-button {
+  width: 40px; /* a tap target large enough for a finger */
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: #555;
+  font: inherit;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.comment__menu-button:hover,
+.comment__menu-button[aria-expanded="true"] {
+  background-color: #e8e8e4;
+  color: var(--color-text);
+}
+
+.comment__menu-button:focus-visible,
+.comment__menu-item:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.comment__menu-list {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  min-width: 8rem;
   display: flex;
-  gap: 0.9rem;
+  flex-direction: column;
+  padding: 0.25rem 0;
+  background-color: #fff;
+  border: 1px solid #e2e2e2;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
-.comment__actions[hidden] {
+.comment__menu-list[hidden] {
   display: none; /* display: flex above would otherwise override the hidden attribute */
+}
+
+.comment__menu-item {
+  min-height: 40px;
+  padding: 0.5rem 1rem;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.comment__menu-item:hover {
+  background-color: #f2f2ef;
+}
+
+.comment__menu-item--delete {
+  color: var(--color-accent);
+}
+
+.comment__menu-item:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 .comment__action {
@@ -253,10 +320,6 @@ textarea.comment-form__input {
   color: var(--color-accent);
 }
 
-.comment__action--delete {
-  color: var(--color-accent);
-}
-
 .comment__action:disabled {
   opacity: 0.6;
   cursor: wait;
@@ -265,6 +328,10 @@ textarea.comment-form__input {
 .comment__error {
   font-size: 0.85rem;
   color: var(--color-accent);
+}
+
+.comment__error:not(:empty) {
+  margin-top: 0.4rem;
 }
 
 .comment-edit-form {

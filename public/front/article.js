@@ -55,10 +55,14 @@ document.addEventListener('DOMContentLoaded', () => {
     commentElement.querySelector('.comment__edited').hidden = !comment.editedAt;
     commentElement.querySelector('.comment__text').textContent = comment.text;
 
-    // The template has both buttons; keep only the ones this viewer may use.
+    // The template's ⋮ menu has both actions; keep only the ones this viewer may use, and no menu at all when
+    // there are none.
     if (!comment.canEdit) commentElement.querySelector('[data-action="edit"]').remove();
     if (!comment.canDelete) commentElement.querySelector('[data-action="delete"]').remove();
-    if (!comment.canEdit && !comment.canDelete) commentElement.querySelector('.comment__footer').remove();
+    if (!comment.canEdit && !comment.canDelete) {
+      commentElement.querySelector('.comment__menu').remove();
+      commentElement.querySelector('.comment__error').remove();
+    }
     return commentElement;
   }
 
@@ -181,6 +185,44 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ---- The ⋮ actions menu of a comment ----
+
+  let openMenu = null; // the .comment__menu that is open; only one is open at a time
+
+  function closeOpenMenu({ returnFocus = false } = {}) {
+    if (!openMenu) return;
+    const menuButton = openMenu.querySelector('.comment__menu-button');
+    openMenu.querySelector('.comment__menu-list').hidden = true;
+    menuButton.setAttribute('aria-expanded', 'false');
+    if (returnFocus) menuButton.focus();
+    openMenu = null;
+  }
+
+  /** Opens the menu (closing any other open one), or closes it when it is already open. */
+  function toggleMenu(menu) {
+    const wasOpen = menu === openMenu;
+    closeOpenMenu();
+    if (wasOpen) return;
+    menu.querySelector('.comment__menu-list').hidden = false;
+    menu.querySelector('.comment__menu-button').setAttribute('aria-expanded', 'true');
+    openMenu = menu;
+  }
+
+  // A click anywhere outside the open menu closes it.
+  document.addEventListener('click', (event) => {
+    if (openMenu && !openMenu.contains(event.target)) closeOpenMenu();
+  });
+
+  // Escape closes it and puts the focus back on its ⋮ button.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && openMenu) closeOpenMenu({ returnFocus: true });
+  });
+
+  // Tabbing out of the open menu closes it too, so it does not stay open over the next comment.
+  commentList.addEventListener('focusout', (event) => {
+    if (openMenu && openMenu.contains(event.target) && !openMenu.contains(event.relatedTarget)) closeOpenMenu();
+  });
+
   // ---- Editing and deleting a comment ----
 
   /** Shows a message next to the comment ('' clears it). */
@@ -196,19 +238,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     editForm.elements.text.value = textElement.textContent;
     textElement.hidden = true;
-    commentElement.querySelector('.comment__actions').hidden = true;
+    commentElement.querySelector('.comment__menu').hidden = true;
     showCommentError(commentElement, '');
     textElement.after(editForm);
     editForm.elements.text.focus();
   }
 
-  /** Removes the edit form and shows the comment's text and buttons again. */
+  /** Removes the edit form and shows the comment's text and its ⋮ menu button again. */
   function closeEditForm(commentElement) {
     commentElement.querySelector('.comment-edit-form').remove();
     commentElement.querySelector('.comment__text').hidden = false;
-    commentElement.querySelector('.comment__actions').hidden = false;
+    commentElement.querySelector('.comment__menu').hidden = false;
     showCommentError(commentElement, '');
-    commentElement.querySelector('[data-action="edit"]').focus();
+    commentElement.querySelector('.comment__menu-button').focus();
   }
 
   async function saveEdit(commentElement, editForm) {
@@ -283,6 +325,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const commentElement = actionButton.closest('.comment');
     const { action } = actionButton.dataset;
+    if (action === 'toggle-menu') {
+      toggleMenu(actionButton.closest('.comment__menu'));
+      return;
+    }
+    closeOpenMenu(); // choosing an action closes the menu
     if (action === 'edit') openEditForm(commentElement);
     else if (action === 'cancel-edit') closeEditForm(commentElement);
     else if (action === 'delete') deleteComment(commentElement, actionButton);
