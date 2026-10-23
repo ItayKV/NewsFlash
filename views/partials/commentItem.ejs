@@ -1,0 +1,34 @@
+<%# One comment. The article page also renders it once, empty, inside <template id="comment-template">, which
+    article.js fills for comments added or loaded on the page, so they look the same as the server-rendered ones.
+    The ⋮ actions menu holds only what the server allows this viewer (canEdit, canDelete), and is left out when
+    the viewer may do neither. %>
+<% const hasActions = comment.canEdit || comment.canDelete; %>
+<li class="comment" data-comment-id="<%= comment.id %>">
+  <article>
+    <header class="comment__header">
+      <span class="comment__author"><%= comment.authorName %></span>
+      <time class="comment__time" datetime="<%= new Date(comment.createdAt).toISOString() %>">
+        <%= new Date(comment.createdAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) %>
+      </time>
+      <span class="comment__edited"<%= comment.editedAt ? '' : ' hidden' %>>(edited)</span>
+      <% if (hasActions) { %>
+        <div class="comment__menu">
+          <button type="button" class="comment__menu-button" data-action="toggle-menu"
+                  aria-label="Comment actions" aria-haspopup="true" aria-expanded="false">&#8942;</button>
+          <div class="comment__menu-list" hidden>
+            <% if (comment.canEdit) { %>
+              <button type="button" class="comment__menu-item" data-action="edit">Edit</button>
+            <% } %>
+            <% if (comment.canDelete) { %>
+              <button type="button" class="comment__menu-item comment__menu-item--delete" data-action="delete">Delete</button>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+    </header>
+    <p class="comment__text"><%= comment.text %></p>
+    <% if (hasActions) { %>
+      <p class="comment__error" aria-live="polite"></p>
+    <% } %>
+  </article>
+</li>
