@@ -41,7 +41,7 @@ function createSlidingWindowLimit(maxRequests) {
   function getWaitTimeMs(key, now) {
     const recentTimes = getRecentRequestTimes(key, now);
     if (recentTimes.length < maxRequests) return 0;
-    // A slot frees up when the oldest of the last maxRequests requests leaves the window.
+    // The wait time is determined by when the oldest request in the current sliding window expires.
     return recentTimes[recentTimes.length - maxRequests] + COMMENT_RATE_WINDOW_MS - now;
   }
 
