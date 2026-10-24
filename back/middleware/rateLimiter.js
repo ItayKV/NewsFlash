@@ -2,7 +2,7 @@ const {
   HTTP_STATUS,
   COMMENT_RATE_WINDOW_MS,
   COMMENT_LIMIT_PER_CLIENT,
-  DEFAULT_COMMENT_LIMIT_PER_IP,
+  COMMENT_LIMIT_PER_IP,
 } = require('../config/constants');
 
 // Comment rate limiting (CLAUDE.md 7.8). Two limits are checked together, and going over either one is
@@ -11,16 +11,6 @@ const {
 //  - per IP address: a higher limit, so clearing cookies does not help, while several people on one network
 //    (same IP) are not blocked because of each other.
 // The counts live in the server's memory, so they start over when the server restarts (fine for one minute).
-
-/** The per-IP limit from COMMENT_RATE_LIMIT_PER_IP, or the default when it is not set or not a positive number. */
-function readCommentLimitPerIp() {
-  const configuredLimit = process.env.COMMENT_RATE_LIMIT_PER_IP;
-  if (!configuredLimit) return DEFAULT_COMMENT_LIMIT_PER_IP;
-  if (/^[1-9]\d*$/.test(configuredLimit)) return Number(configuredLimit);
-
-  console.warn(`COMMENT_RATE_LIMIT_PER_IP must be a positive whole number; using ${DEFAULT_COMMENT_LIMIT_PER_IP}`);
-  return DEFAULT_COMMENT_LIMIT_PER_IP;
-}
 
 /**
  * One limit: at most `maxRequests` requests per key within the sliding window. For each key it remembers
@@ -63,7 +53,7 @@ function createSlidingWindowLimit(maxRequests) {
 }
 
 const clientLimit = createSlidingWindowLimit(COMMENT_LIMIT_PER_CLIENT);
-const ipLimit = createSlidingWindowLimit(readCommentLimitPerIp());
+const ipLimit = createSlidingWindowLimit(COMMENT_LIMIT_PER_IP);
 
 // Clean up once per window. unref(): this timer alone does not keep the server process running.
 setInterval(() => {

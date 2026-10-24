@@ -25,11 +25,10 @@ const MAX_PAGE = 100000;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
-// Comment rate limits (see CLAUDE.md 7.8), counted over a sliding window of one minute. The per-IP limit can
-// be changed with COMMENT_RATE_LIMIT_PER_IP in .env.
+// Comment rate limits (see CLAUDE.md 7.8), counted over a sliding window of one minute.
 const COMMENT_RATE_WINDOW_MS = 60 * 1000;  // 1 minute
 const COMMENT_LIMIT_PER_CLIENT = 3;        // per logged-in user, or per guest visitor cookie
-const DEFAULT_COMMENT_LIMIT_PER_IP = 20;
+const COMMENT_LIMIT_PER_IP = 20;           // higher, so several people on one network are not blocked
 
 module.exports = {
   HTTP_STATUS,
@@ -42,5 +41,5 @@ module.exports = {
   MAX_PAGE_SIZE,
   COMMENT_RATE_WINDOW_MS,
   COMMENT_LIMIT_PER_CLIENT,
-  DEFAULT_COMMENT_LIMIT_PER_IP,
+  COMMENT_LIMIT_PER_IP,
 };

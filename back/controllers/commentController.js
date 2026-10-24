@@ -3,12 +3,9 @@ const articleService = require('../services/articleService');
 const { HTTP_STATUS } = require('../config/constants');
 const articleValidators = require('../validators/articleValidators');
 const commentValidators = require('../validators/commentValidators');
+const { isValidUUID } = require('../validators/sharedValidators');
 const { getCommentViewer, canEditComment, canDeleteComment } = require('../utils/commentUtils');
-const {
-  serializeComment,
-  serializeCommentForViewer,
-  serializeArticleComments,
-} = require('../serializers/commentSerializers');
+const { serializeCommentForViewer, serializeArticleComments } = require('../serializers/commentSerializers');
 
 // The controller validates the input and applies the permission rules (commentUtils); the service only talks
 // to the database. Expected failures are returned as { status, message }, not thrown. Comments can be read and
@@ -22,17 +19,6 @@ const commentNotFound = () => httpError(HTTP_STATUS.NOT_FOUND, 'Comment not foun
 
 const sendError = (res, error) => res.status(error.status).json({ error: error.message });
 
-/** Sends one page of serialized comments with the paging details. */
-function sendCommentPage(res, items, pagination, total) {
-  res.status(HTTP_STATUS.OK).json({
-    items,
-    page: pagination.page,
-    limit: pagination.limit,
-    total,
-    totalPages: Math.ceil(total / pagination.limit),
-  });
-}
-
 /**
  * A batch of one public article's comments (newest first, `limit` of them), each with what the viewer may do
  * with it, and `nextCursor`. The next batch is asked for with ?before=<nextCursor>; it is null when no older
@@ -42,18 +28,18 @@ function sendCommentPage(res, items, pagination, total) {
 async function listArticleComments(req, res, next) {
   try {
     const { articleId } = req.params;
-    if (!articleValidators.isValidArticleId(articleId)) return sendError(res, invalidRequest('Invalid article id'));
+    if (!isValidUUID(articleId)) return sendError(res, invalidRequest('Invalid article id'));
 
     const { limit, error: limitError } = articleValidators.parsePagination(req.query);
     if (limitError) return sendError(res, invalidRequest(limitError));
 
-    const cursor = commentValidators.parseCommentCursor(req.query);
-    if (cursor.error) return sendError(res, invalidRequest(cursor.error));
+    const { before, error: cursorError } = commentValidators.parseCommentCursor(req.query);
+    if (cursorError) return sendError(res, invalidRequest(cursorError));
 
     const article = await articleService.findPublicArticleById(articleId);
     if (!article) return sendError(res, articleNotFound());
 
-    const commentBatch = await commentService.findArticleComments(articleId, { limit, before: cursor.before });
+    const commentBatch = await commentService.findArticleComments(articleId, { limit, before });
     res.status(HTTP_STATUS.OK).json(serializeArticleComments(commentBatch, getCommentViewer(req), article.author.id));
   } catch (err) {
     next(err);
@@ -67,7 +53,7 @@ async function listArticleComments(req, res, next) {
 async function createComment(req, res, next) {
   try {
     const { articleId } = req.params;
-    if (!articleValidators.isValidArticleId(articleId)) return sendError(res, invalidRequest('Invalid article id'));
+    if (!isValidUUID(articleId)) return sendError(res, invalidRequest('Invalid article id'));
 
     const { text, guestName } = req.body || {};
     const textError = commentValidators.getCommentTextError(text);
@@ -99,40 +85,10 @@ async function createComment(req, res, next) {
   }
 }
 
-/** Searches all comments (one page, newest first): optionally by text and/or by article. Open to everyone. */
-async function searchComments(req, res, next) {
-  try {
-    const pagination = articleValidators.parsePagination(req.query);
-    if (pagination.error) return sendError(res, invalidRequest(pagination.error));
-
-    const filters = commentValidators.parseCommentSearch(req.query);
-    if (filters.error) return sendError(res, invalidRequest(filters.error));
-
-    const { comments, total } = await commentService.findCommentPage(pagination, filters);
-    sendCommentPage(res, comments.map(serializeComment), pagination, total);
-  } catch (err) {
-    next(err);
-  }
-}
-
-/** One comment. Open to everyone. */
-async function getComment(req, res, next) {
-  try {
-    if (!commentValidators.isValidCommentId(req.params.id)) return sendError(res, invalidRequest('Invalid comment id'));
-
-    const comment = await commentService.findCommentById(req.params.id);
-    if (!comment) return sendError(res, commentNotFound());
-
-    res.status(HTTP_STATUS.OK).json(serializeComment(comment));
-  } catch (err) {
-    next(err);
-  }
-}
-
 /** Replaces the text of a comment. Only the logged-in user who wrote it (the route guard requires a login). */
 async function updateComment(req, res, next) {
   try {
-    if (!commentValidators.isValidCommentId(req.params.id)) return sendError(res, invalidRequest('Invalid comment id'));
+    if (!isValidUUID(req.params.id)) return sendError(res, invalidRequest('Invalid comment id'));
 
     const { text } = req.body || {};
     const textError = commentValidators.getCommentTextError(text);
@@ -160,7 +116,7 @@ async function updateComment(req, res, next) {
 /** Deletes a comment: an editor, the one who wrote it (a guest too), or the reporter who wrote the article. */
 async function deleteComment(req, res, next) {
   try {
-    if (!commentValidators.isValidCommentId(req.params.id)) return sendError(res, invalidRequest('Invalid comment id'));
+    if (!isValidUUID(req.params.id)) return sendError(res, invalidRequest('Invalid comment id'));
 
     const comment = await commentService.findCommentById(req.params.id);
     if (!comment) return sendError(res, commentNotFound());
@@ -180,8 +136,6 @@ async function deleteComment(req, res, next) {
 module.exports = {
   listArticleComments,
   createComment,
-  searchComments,
-  getComment,
   updateComment,
   deleteComment,
 };

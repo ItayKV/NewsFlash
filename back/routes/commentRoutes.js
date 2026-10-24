@@ -11,8 +11,6 @@ const router = express.Router();
 // Adding is rate limited (per client and per IP).
 router.get('/articles/:articleId/comments', controller.listArticleComments);
 router.post('/articles/:articleId/comments', limitCommentRate, controller.createComment);
-router.get('/comments', controller.searchComments);
-router.get('/comments/:id', controller.getComment);
 router.patch('/comments/:id', requireRole(RoleEnum.EDITOR, RoleEnum.REPORTER), controller.updateComment);
 router.delete('/comments/:id', controller.deleteComment);
 

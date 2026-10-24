@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const commentUrl = (commentElement) => `/api/comments/${commentElement.dataset.commentId}`;
   const NETWORK_ERROR_MESSAGE = 'Could not reach the server. Please try again.';
   const TOO_MANY_REQUESTS = 429;
+  const COUNTDOWN_TICK_MS = 250; // shorter than a second, so the shown seconds change on time
   let isPosting = false;
   let rateLimitTimer = null; // runs while posting is paused after a 429 (see startRateLimitCountdown)
 
@@ -115,7 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
     countdown.setAttribute('aria-hidden', 'true');
     formStatus.replaceChildren(announcement, countdown);
 
-    // The seconds left are worked out from the end time, so a late timer tick never makes the count drift.
+    // On every tick the seconds left are worked out again from the end time, so a late tick never makes the
+    // count drift.
     function updateCountdown() {
       const secondsLeft = Math.ceil((endsAt - Date.now()) / 1000);
       if (secondsLeft > 0) {
@@ -130,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     submitButton.disabled = true;
     updateCountdown();
-    rateLimitTimer = setInterval(updateCountdown, 1000);
+    rateLimitTimer = setInterval(updateCountdown, COUNTDOWN_TICK_MS);
   }
 
   // Checked here before sending: every request that reaches the server counts toward the comment rate limit,
@@ -198,20 +200,23 @@ document.addEventListener('DOMContentLoaded', () => {
     openMenu = null;
   }
 
-  /** Opens the menu (closing any other open one), or closes it when it is already open. */
+  /** Closes the menu when it is the open one, otherwise opens it. */
   function toggleMenu(menu) {
-    const wasOpen = menu === openMenu;
-    closeOpenMenu();
-    if (wasOpen) return;
+    if (menu === openMenu) {
+      closeOpenMenu();
+      return;
+    }
     menu.querySelector('.comment__menu-list').hidden = false;
     menu.querySelector('.comment__menu-button').setAttribute('aria-expanded', 'true');
     openMenu = menu;
   }
 
-  // A click anywhere outside the open menu closes it.
+  // A click anywhere outside the open menu closes it, also a click on another comment's ⋮ button. It listens in
+  // the capture phase, so it runs before the comment list's click listener: the other menu is already closed
+  // when toggleMenu opens this one.
   document.addEventListener('click', (event) => {
     if (openMenu && !openMenu.contains(event.target)) closeOpenMenu();
-  });
+  }, true);
 
   // Escape closes it and puts the focus back on its ⋮ button.
   document.addEventListener('keydown', (event) => {

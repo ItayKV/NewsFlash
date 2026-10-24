@@ -41,4 +41,4 @@ function serializeArticleComments({ comments, hasMore }, viewer, articleAuthorId
   return { items, nextCursor: hasMore ? toCommentCursor(items[items.length - 1]) : null };
 }
 
-module.exports = { serializeComment, serializeCommentForViewer, serializeArticleComments };
+module.exports = { serializeCommentForViewer, serializeArticleComments };
