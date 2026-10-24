@@ -2,7 +2,6 @@ const articleService = require('../../back/services/articleService');
 const commentService = require('../../back/services/commentService');
 const weatherService = require('../../back/services/weatherService');
 const articleValidators = require('../../back/validators/articleValidators');
-const { isValidUUID } = require('../../back/validators/sharedValidators');
 const { HTTP_STATUS, DEFAULT_PAGE_SIZE } = require('../../back/config/constants');
 const { serializeArticlesPage, serializeArticle } =require('../../back/serializers/articleSerializers');
 const { serializeArticleComments } = require('../../back/serializers/commentSerializers');
@@ -58,7 +57,7 @@ async function renderFeedPage(req, res, next) {
 async function renderArticlePage(req, res, next) {
   try {
     const { id } = req.params;
-    const article = isValidUUID(id) ? await articleService.findPublicArticleById(id) : null;
+    const article = articleValidators.isValidArticleId(id) ? await articleService.findPublicArticleById(id) : null;
     if (!article) return res.status(HTTP_STATUS.NOT_FOUND).type('text').send('Article not found');
 
     const [commentBatch, commentCount] = await Promise.all([
