@@ -12,7 +12,8 @@
 </head>
 <body>
   <%- include('../components/header') %>
-  <main class="review" id="article-analytics" data-article-id="<%= article.id %>">
+  <main class="review" id="article-analytics" data-article-id="<%= article.id %>"
+        data-published-times="<%= JSON.stringify(publishedTimes) %>">
     <a class="review__back" href="/editor/analytics">&larr; Back to Article Analytics</a>
     <h1 class="review__title"><%= article.title %></h1>
     <p class="review__meta">

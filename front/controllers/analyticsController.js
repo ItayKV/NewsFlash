@@ -12,6 +12,8 @@ const BIN_OPTIONS = Object.freeze([
   { minutes: 5, label: '5 minutes' },
   { minutes: 15, label: '15 minutes' },
   { minutes: 60, label: '1 hour' },
+  { minutes: 4 * 60, label: '4 hours' },
+  { minutes: 12 * 60, label: '12 hours' },
   { minutes: 24 * 60, label: '1 day' },
 ]);
 
@@ -51,15 +53,20 @@ async function renderAnalyticsArticles(req, res, next) {
   }
 }
 
-/** One article's analytics page: its total views and the chart of its views over time. */
+/**
+ * One article's analytics page: its total views and the chart of its views over time, with a marker for each
+ * published version (the first publication and every approved update).
+ */
 async function renderArticleAnalyticsPage(req, res, next) {
   try {
     const { id } = req.params;
     const article = articleValidators.isValidArticleId(id) ? await articleService.findArticleAnalytics(id) : null;
     if (!article) return res.status(HTTP_STATUS.NOT_FOUND).type('text').send('Article not found');
 
+    const revisions = await articleService.findPublishedRevisions(id);
     res.render('pages/articleAnalytics', {
       article: toAnalyticsArticle(article),
+      publishedTimes: revisions.map((revision) => revision.publishedAt), // oldest first
       binOptions: BIN_OPTIONS,
       defaultBinMinutes: DEFAULT_VIEW_BIN_MINUTES,
     });

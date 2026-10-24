@@ -29,7 +29,7 @@ const MAX_QUEUED_VIEWS = 500;
 const VIEW_FLUSH_INTERVAL_MS = 60 * 1000; // 1 minute
 
 // View timeline: the size of one time bucket, in minutes.
-const DEFAULT_VIEW_BIN_MINUTES = 5;
+const DEFAULT_VIEW_BIN_MINUTES = 60; // 1 hour
 const MAX_VIEW_BIN_MINUTES = 24 * 60; // 1 day
 
 module.exports = {
