@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 const connectDB = require('../back/config/db');
 const { RoleEnum } = require('../back/models/User');
@@ -7,6 +8,7 @@ const userService = require('../back/services/userService');
 const userValidators = require('../back/validators/userValidators');
 const Article = require('../back/models/Article');
 const ArticleRevision = require('../back/models/ArticleRevision');
+const ArticleView = require('../back/models/ArticleView');
 const User = require('../back/models/User');
 const SEED_ARTICLES = require('./seedArticles');
 
@@ -35,13 +37,14 @@ async function seedUsers() {
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
-// Deletes every article and every revision (the users are kept), then makes the indexes of both collections
+// Deletes every article, revision and view (the users are kept), then makes the indexes of these collections
 // match the schemas: indexes of an older schema are dropped and missing ones are created.
 async function clearArticles() {
+  const { deletedCount: deletedViews } = await ArticleView.deleteMany({});
   const { deletedCount: deletedRevisions } = await ArticleRevision.deleteMany({});
   const { deletedCount: deletedArticles } = await Article.deleteMany({});
-  await Promise.all([Article.syncIndexes(), ArticleRevision.syncIndexes()]);
-  console.log(`Deleted ${deletedArticles} articles and ${deletedRevisions} revisions`);
+  await Promise.all([Article.syncIndexes(), ArticleRevision.syncIndexes(), ArticleView.syncIndexes()]);
+  console.log(`Deleted ${deletedArticles} articles, ${deletedRevisions} revisions and ${deletedViews} views`);
 }
 
 // Every sample article is published: its live content (Article.content), plus one published revision with the
@@ -170,6 +173,77 @@ async function seedWorkflowArticles() {
   console.log('Created workflow articles: 4 in progress, 4 pending, 3 returned, 3 pending updates');
 }
 
+const VIEWING_USERS_COUNT = 5;
+const VIEWED_ARTICLES_COUNT = 10;
+const BUSY_ARTICLES_COUNT = 2;
+const HOUR_IN_MS = 60 * 60 * 1000;
+
+/** The newest public articles (by first publication), at most `count`. */
+function findNewestPublicArticles(count) {
+  return Article.find({ publishedAt: { $ne: null } }).sort({ publishedAt: -1 }).limit(count);
+}
+
+// Each of the first users (by email) views each of the newest public articles once, at a random time between
+// the article's first publication and now.
+async function seedUserViews() {
+  const users = await User.find().sort({ email: 1 }).limit(VIEWING_USERS_COUNT);
+  const articles = await findNewestPublicArticles(VIEWED_ARTICLES_COUNT);
+
+  const now = Date.now();
+  const views = articles.flatMap((article) => {
+    const publishedTime = article.publishedAt.getTime();
+    return users.map((user) => ({
+      article: article.id,
+      viewer: user.id,
+      viewedAt: new Date(publishedTime + Math.random() * (now - publishedTime)),
+    }));
+  });
+  await ArticleView.insertMany(views);
+  console.log(`Created ${views.length} user views: ${users.length} users x ${articles.length} articles`);
+}
+
+// Guests (each a new visitor id) per hour: busier in the daytime, so the chart shows a daily rhythm.
+const DAYTIME_GUESTS_PER_HOUR = 4; // 08:00 to 22:59
+const NIGHT_GUESTS_PER_HOUR = 1;
+const guestsInHour = (hourOfDay) => (hourOfDay >= 8 && hourOfDay <= 22 ? DAYTIME_GUESTS_PER_HOUR : NIGHT_GUESTS_PER_HOUR);
+
+// Many guest views on the two newest public articles, every hour of the last month (from the article's first
+// publication if it is newer), spread evenly over each hour.
+async function seedGuestViews() {
+  const articles = await findNewestPublicArticles(BUSY_ARTICLES_COUNT);
+  const now = Date.now();
+  const monthAgo = now - 30 * DAY_IN_MS;
+
+  const views = [];
+  for (const article of articles) {
+    const firstHour = Math.ceil(Math.max(article.publishedAt.getTime(), monthAgo) / HOUR_IN_MS) * HOUR_IN_MS;
+    for (let hourStart = firstHour; hourStart + HOUR_IN_MS <= now; hourStart += HOUR_IN_MS) {
+      const guestCount = guestsInHour(new Date(hourStart).getHours());
+      for (let guestIndex = 0; guestIndex < guestCount; guestIndex++) {
+        views.push({
+          article: article.id,
+          viewer: crypto.randomUUID(),
+          viewedAt: new Date(hourStart + (guestIndex * HOUR_IN_MS) / guestCount),
+        });
+      }
+    }
+  }
+  await ArticleView.insertMany(views);
+  console.log(`Created ${views.length} guest views on ${articles.length} articles`);
+}
+
+// Sets each article's viewCount to its number of views (the seeded views are written directly, not counted).
+async function syncViewCounts() {
+  const viewCounts = await ArticleView.aggregate([{ $group: { _id: '$article', viewCount: { $sum: 1 } } }]);
+  if (viewCounts.length === 0) return;
+  await Article.bulkWrite(
+    viewCounts.map(({ _id: articleId, viewCount }) => ({
+      updateOne: { filter: { _id: articleId }, update: { $set: { viewCount } }, timestamps: false },
+    }))
+  );
+  console.log(`Set the view count of ${viewCounts.length} articles`);
+}
+
 async function main() {
   await connectDB();
   if (mongoose.connection.readyState !== 1) throw new Error('Database is not connected');
@@ -179,6 +253,9 @@ async function main() {
   const editor = await User.findOne({ role: RoleEnum.EDITOR }).sort({ email: 1 });
   await seedPublishedUpdates(editor);
   await seedWorkflowArticles();
+  await seedUserViews();
+  await seedGuestViews();
+  await syncViewCounts();
 }
 
 main()
