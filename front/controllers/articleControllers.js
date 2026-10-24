@@ -7,11 +7,24 @@ const { serializeArticlesPage, serializeArticle } =require('../../back/serialize
 
 const { ARTICLE_CATEGORIES } = require('../../back/models/Article');
 
+const { ViewedFilterEnum } = articleValidators;
+
 const HAS_MORE_HEADER = 'X-Has-More';
 
-/** One page of the public feed, with whether a later page exists. */
-async function findFeedPage(pagination, filters) {
-  const { articles, total } = await articleService.findPublicArticlePage(pagination, filters);
+/** Who is viewing, for unique views: the logged-in user's id, else the visitor cookie. */
+const getViewerId = (req) => req.session.userId || req.visitorId;
+
+/**
+ * One page of the public feed, with whether a later page exists. The viewed filter keeps only (or leaves out)
+ * the articles this viewer has viewed. Views still waiting in the queue are not seen yet (up to a minute).
+ */
+async function findFeedPage(pagination, { viewed = null, ...queryFilters } = {}, viewerId = null) {
+  // viewed is 'viewed', 'unviewed', or null for no filter (see parseFeedFilters).
+  if (viewed !== null) {
+    queryFilters.viewerId = viewerId;
+    queryFilters.hasViewed = viewed === ViewedFilterEnum.VIEWED;
+  }
+  const { articles, total } = await articleService.findPublicArticlePage(pagination, queryFilters);
   return {
     articles: serializeArticlesPage(articles),
     hasMore: pagination.page < Math.ceil(total / pagination.limit),
@@ -39,7 +52,7 @@ async function renderFeedPage(req, res, next) {
     const filters = articleValidators.parseFeedFilters(req.query);
     if (filters.error) return res.status(HTTP_STATUS.BAD_REQUEST).type('text').send(filters.error);
 
-    const { articles, hasMore } = await findFeedPage(pagination, filters);
+    const { articles, hasMore } = await findFeedPage(pagination, filters, getViewerId(req));
     res.set(HAS_MORE_HEADER, String(hasMore));
     res.render('partials/feedPage', { articles });
   } catch (err) {
@@ -54,8 +67,8 @@ async function renderArticlePage(req, res, next) {
     const article = articleValidators.isValidArticleId(id) ? await articleService.findPublicArticleById(id) : null;
     if (!article) return res.status(HTTP_STATUS.NOT_FOUND).type('text').send('Article not found');
 
-    // A unique view per viewer: the logged-in user, else the visitor cookie. Queued, written later in bulk.
-    viewQueue.addView(article._id, req.session.userId || req.visitorId);
+    // A unique view per viewer. Queued, written later in bulk.
+    viewQueue.addView(article._id, getViewerId(req));
 
     res.render('pages/article', { article: serializeArticle(article) });
   } catch (err) {

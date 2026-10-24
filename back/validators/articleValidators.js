@@ -9,6 +9,10 @@ const SEARCH_MAX_LENGTH = 100;
 const EDITOR_NOTE_MAX_LENGTH = 1000;
 const EDITOR_NOTES_MAX_COUNT = 20;
 
+// The feed's sort orders, and its filter by whether the current viewer already viewed the article.
+const FeedSortEnum = Object.freeze({ NEWEST: 'newest', POPULAR: 'popular' });
+const ViewedFilterEnum = Object.freeze({ VIEWED: 'viewed', UNVIEWED: 'unviewed' });
+
 const isString = (value) => typeof value === 'string';
 
 // A string of up to maxLength characters.
@@ -88,11 +92,12 @@ function parsePagination(query) {
 }
 
 /**
- * Parses the feed's `search` and `category` query parameters. Both are optional; empty means "no filter".
- * Returns { search, category } (null when not given) or { error } with a message.
+ * Parses the feed's `search`, `category`, `sort` and `viewed` query parameters. All are optional; empty means
+ * "no filter" (and the newest-first sort). Returns { search, category, sort, viewed } (null when not given)
+ * or { error } with a message.
  */
 function parseFeedFilters(query) {
-  const { search, category } = query || {};
+  const { search, category, sort, viewed } = query || {};
 
   if (search && (!isString(search) || search.trim().length > SEARCH_MAX_LENGTH)) {
     return { error: `Search must be text of up to ${SEARCH_MAX_LENGTH} characters` };
@@ -100,8 +105,19 @@ function parseFeedFilters(query) {
   if (category && !isValidCategory(category)) {
     return { error: `Category must be one of: ${ARTICLE_CATEGORIES.join(', ')}` };
   }
+  if (sort && !Object.values(FeedSortEnum).includes(sort)) {
+    return { error: `Sort must be one of: ${Object.values(FeedSortEnum).join(', ')}` };
+  }
+  if (viewed && !Object.values(ViewedFilterEnum).includes(viewed)) {
+    return { error: `Viewed must be one of: ${Object.values(ViewedFilterEnum).join(', ')}` };
+  }
 
-  return { search: search ? search.trim() || null : null, category: category || null };
+  return {
+    search: search ? search.trim() || null : null,
+    category: category || null,
+    sort: sort || FeedSortEnum.NEWEST,
+    viewed: viewed || null,
+  };
 }
 
 /**
@@ -125,6 +141,8 @@ module.exports = {
   BODY_MAX_LENGTH,
   EDITOR_NOTE_MAX_LENGTH,
   EDITOR_NOTES_MAX_COUNT,
+  FeedSortEnum,
+  ViewedFilterEnum,
   isValidImageUrl,
   isValidCategory,
   isValidStatus,

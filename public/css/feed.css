@@ -19,6 +19,7 @@
 
 .feed__search-input,
 .feed__search-category,
+.feed__search-select,
 .feed__search-button {
   padding: 0.5rem 0.75rem;
   border: 1px solid #ccc;
