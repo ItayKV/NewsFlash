@@ -1,0 +1,45 @@
+<%
+  const formatDate = (date) => new Date(date).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics: <%= article.title %> - The Daily Web</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+  <%- include('../components/header') %>
+  <main class="review" id="article-analytics" data-article-id="<%= article.id %>">
+    <a class="review__back" href="/editor/analytics">&larr; Back to Article Analytics</a>
+    <h1 class="review__title"><%= article.title %></h1>
+    <p class="review__meta">
+      by <%= article.authorName || 'Unknown' %> · first published
+      <time datetime="<%= new Date(article.publishedAt).toISOString() %>"><%= formatDate(article.publishedAt) %></time>
+      · <a class="dashboard__link" href="/articles/<%= article.id %>">open the article</a>
+    </p>
+
+    <section class="analytics__chart-card" aria-label="Views over time">
+      <div class="analytics__chart-header">
+        <h2>Views over time <span class="analytics__total"><%= article.viewCount %> unique <%= article.viewCount === 1 ? 'view' : 'views' %></span></h2>
+        <div class="dashboard__filters analytics__bin">
+          <label for="bin-minutes">Group by</label>
+          <select id="bin-minutes">
+            <% binOptions.forEach((option) => { %>
+              <option value="<%= option.minutes %>" <%= option.minutes === defaultBinMinutes ? 'selected' : '' %>><%= option.label %></option>
+            <% }) %>
+          </select>
+        </div>
+      </div>
+      <p class="dashboard__message" id="chart-status" role="status">Loading…</p>
+      <div class="analytics__chart">
+        <canvas id="views-chart" aria-label="Unique views per time bucket"></canvas>
+      </div>
+    </section>
+  </main>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" defer></script>
+  <script src="/front/analytics.js" defer></script>
+</body>
+</html>

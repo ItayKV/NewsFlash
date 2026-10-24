@@ -25,6 +25,11 @@ function findArticleById(articleId) {
   return Article.findById(articleId);
 }
 
+/** Whether an article with this id exists. */
+async function articleExists(articleId) {
+  return (await Article.exists({ _id: articleId })) !== null;
+}
+
 /** The id of the article's author, or null when there is no such article. */
 async function findAuthorId(articleId) {
   const article = await Article.findById(articleId).select('author.id').lean();
@@ -201,6 +206,17 @@ const PUBLIC_FILTER = Object.freeze({ publishedAt: { $ne: null } });
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** The filter of the public articles: optionally one category, and a search in the title or summary (case-insensitive). */
+function buildPublicFilter({ search = null, category = null } = {}) {
+  const filter = { ...PUBLIC_FILTER };
+  if (category) filter['content.category'] = category;
+  if (search) {
+    const searchPattern = new RegExp(escapeRegex(search), 'i');
+    filter.$or = [{ 'content.title': searchPattern }, { 'content.summary': searchPattern }];
+  }
+  return filter;
+}
+
 // The feed's sort orders (FeedSortEnum values): newest publication first, or most unique views first.
 const FEED_SORTS = Object.freeze({ newest: { publishedAt: -1 }, popular: { viewCount: -1 } });
 
@@ -247,12 +263,7 @@ function findPublicArticlePage(
   pagination,
   { search = null, category = null, sort = 'newest', viewerId = null, hasViewed = null } = {}
 ) {
-  const filter = { ...PUBLIC_FILTER };
-  if (category) filter['content.category'] = category;
-  if (search) {
-    const searchPattern = new RegExp(escapeRegex(search), 'i');
-    filter.$or = [{ 'content.title': searchPattern }, { 'content.summary': searchPattern }];
-  }
+  const filter = buildPublicFilter({ search, category });
   const pageOptions = { sort: FEED_SORTS[sort], fields: FEED_FIELDS };
   if (hasViewed === null) return findArticlePage(filter, pagination, pageOptions);
   return findArticlePageByViewer(filter, pagination, { ...pageOptions, viewerId, hasViewed });
@@ -268,7 +279,23 @@ function findPublicArticleById(articleId) {
     .lean();
 }
 
+// The Article fields the editor's analytics pages need (the live title and the total views).
+const ANALYTICS_FIELDS = 'content.title author publishedAt viewCount';
+
+/** One page of the public articles for the analytics list, most viewed first, optionally a title or summary search. */
+function findAnalyticsArticlePage(pagination, { search = null } = {}) {
+  return findArticlePage(buildPublicFilter({ search }), pagination, { sort: FEED_SORTS.popular, fields: ANALYTICS_FIELDS });
+}
+
+/** The public article's analytics fields, or null when there is none or it was never published (it has no views). */
+function findArticleAnalytics(articleId) {
+  return Article.findOne({ _id: articleId, ...PUBLIC_FILTER }).select(ANALYTICS_FIELDS).lean();
+}
+
 module.exports = {
+  articleExists,
+  findAnalyticsArticlePage,
+  findArticleAnalytics,
   findArticleById,
   findPublicArticleById,
   findAuthorId,

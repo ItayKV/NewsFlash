@@ -36,4 +36,22 @@ function incrementViewCounts(newViewCountsByArticle) {
   );
 }
 
-module.exports = { insertNewViews, incrementViewCounts };
+/**
+ * The article's unique views per time bucket of binMinutes, oldest first: [{ time, count }]. Buckets without
+ * views are left out. Each view counts in the bucket of its first view time.
+ */
+function findViewTimeline(articleId, binMinutes) {
+  return ArticleView.aggregate([
+    { $match: { article: articleId } },
+    {
+      $group: {
+        _id: { $dateTrunc: { date: '$viewedAt', unit: 'minute', binSize: binMinutes } },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+    { $project: { _id: 0, time: '$_id', count: 1 } },
+  ]);
+}
+
+module.exports = { insertNewViews, incrementViewCounts, findViewTimeline };
