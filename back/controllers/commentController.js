@@ -86,6 +86,15 @@ async function createComment(req, res, next) {
     }
 
     const comment = await commentService.createComment(newComment);
+
+    // The article may have started being deleted while the comment was being added (its comments may already be
+    // gone), so it is checked again. If so, the new comment is removed too.
+    const articleAfterInsert = await articleService.findPublicArticleById(articleId);
+    if (!articleAfterInsert) {
+      await commentService.deleteCommentById(comment.id);
+      return sendError(res, articleNotFound());
+    }
+
     res.status(HTTP_STATUS.CREATED).json(serializeCommentForViewer(comment, viewer));
   } catch (err) {
     next(err);

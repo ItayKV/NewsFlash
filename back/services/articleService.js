@@ -141,10 +141,12 @@ function publishDraftRevision({ article, draftRevision, approvedBy, publishedAt 
 
 /**
  * Deletes the article with everything that belongs to it: its comments and its revisions (CLAUDE.md 7.3).
+ * It is first marked as deleted (deletedAt), so no new comment can be added while it is being deleted.
  * No transaction (7.10): the article goes last, so if a step fails the article still exists and the delete
  * can simply be repeated.
  */
 async function deleteArticleWithRelatedData(articleId) {
+  await Article.updateOne({ _id: articleId }, { $set: { deletedAt: new Date() } });
   await Comment.deleteMany({ article: articleId });
   await ArticleRevision.deleteMany({ article: articleId });
   await Article.deleteOne({ _id: articleId });
@@ -195,9 +197,12 @@ function findPublicArticlePage(pagination, { search = null, category = null } = 
 // The Article fields the public article page needs (the live content, with its body).
 const PUBLIC_ARTICLE_FIELDS = 'content author publishedAt';
 
-/** The public article (live content), or null when there is none or it was never published. */
+/**
+ * The public article (live content), or null when there is none, it was never published, or it is being
+ * deleted (deletedAt is set).
+ */
 function findPublicArticleById(articleId) {
-  return Article.findOne({ _id: articleId, ...PUBLIC_FILTER })
+  return Article.findOne({ _id: articleId, ...PUBLIC_FILTER, deletedAt: null })
     .select(PUBLIC_ARTICLE_FIELDS)
     .lean();
 }

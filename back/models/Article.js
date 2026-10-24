@@ -25,6 +25,7 @@ const articleSchema = new mongoose.Schema(
     content: { type: contentSchema },
     editorNotes: { type: [{ type: String, trim: true }], default: [] }, // the editor's feedback points of the current return
     publishedAt: { type: Date }, // first publication only
+    deletedAt: { type: Date, default: null }, // set when a delete starts, just before the article is removed
   },
   { timestamps: { createdAt: false } }
 );
