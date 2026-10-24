@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const app = require('./app');
 const connectDB = require('./back/config/db');
+const viewQueue = require('./back/utils/viewQueue');
 
 const PORT = process.env.PORT || 3000;
 
@@ -23,7 +24,16 @@ process.on('uncaughtException', (err) => {
 // Fire-and-forget: DB connection attempts run in parallel with the
 // HTTP server starting, and never block or crash startup on failure.
 connectDB();
+viewQueue.startViewFlushTimer();
 
 app.listen(PORT, () => {
   console.log(`The Daily Web server listening on http://localhost:${PORT}`);
 });
+
+// On a normal stop (Ctrl+C, a hosting shutdown), write the queued article views before exiting.
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, async () => {
+    await viewQueue.flushAllViews();
+    process.exit(0);
+  });
+}

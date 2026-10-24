@@ -1,5 +1,6 @@
 const articleService = require('../../back/services/articleService');
 const weatherService = require('../../back/services/weatherService');
+const viewQueue = require('../../back/utils/viewQueue');
 const articleValidators = require('../../back/validators/articleValidators');
 const { HTTP_STATUS } = require('../../back/config/constants');
 const { serializeArticlesPage, serializeArticle } =require('../../back/serializers/articleSerializers');
@@ -52,6 +53,9 @@ async function renderArticlePage(req, res, next) {
     const { id } = req.params;
     const article = articleValidators.isValidArticleId(id) ? await articleService.findPublicArticleById(id) : null;
     if (!article) return res.status(HTTP_STATUS.NOT_FOUND).type('text').send('Article not found');
+
+    // A unique view per viewer: the logged-in user, else the visitor cookie. Queued, written later in bulk.
+    viewQueue.addView(article._id, req.session.userId || req.visitorId);
 
     res.render('pages/article', { article: serializeArticle(article) });
   } catch (err) {
