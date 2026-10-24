@@ -340,13 +340,13 @@ async function returnForRevision(req, res, next) {
   }
 }
 
-/** An editor deletes the article with all its revisions. */
+/** An editor deletes the article with all its revisions and views. */
 async function deleteArticle(req, res, next) {
   try {
     const article = await articleService.findArticleById(req.params.id);
     if (!article) return sendError(res, articleNotFound());
 
-    await articleService.deleteArticleWithRevisions(article.id);
+    await articleService.deleteArticle(article.id);
     logActivity(EventEnum.ARTICLE_DELETED, req.session, article.id, `was ${article.status}`);
     res.status(HTTP_STATUS.OK).json({ message: 'Article deleted' });
   } catch (err) {

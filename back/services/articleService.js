@@ -143,9 +143,10 @@ function publishDraftRevision({ article, draftRevision, approvedBy, publishedAt 
   });
 }
 
-/** Deletes the article and its revisions. The article goes last, so a failed delete can be repeated. */
-async function deleteArticleWithRevisions(articleId) {
+/** Deletes the article, its revisions and its views. The article goes last, so a failed delete can be repeated. */
+async function deleteArticle(articleId) {
   await ArticleRevision.deleteMany({ article: articleId });
+  await ArticleView.deleteMany({ article: articleId });
   await Article.deleteOne({ _id: articleId });
 }
 
@@ -308,7 +309,7 @@ module.exports = {
   startArticleUpdate,
   saveDraftChanges,
   publishDraftRevision,
-  deleteArticleWithRevisions,
+  deleteArticle,
   findArticlePage,
   findAuthorArticles,
   findDraftTitles,
