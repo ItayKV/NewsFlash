@@ -103,25 +103,18 @@ document.addEventListener('DOMContentLoaded', () => {
     `You are commenting too fast. Please try again in ${seconds} ${seconds === 1 ? 'second' : 'seconds'}.`;
 
   /**
-   * After a 429: keeps the submit button disabled and counts down the seconds the server asked to wait, then
-   * re-enables it and clears the message. Screen readers hear the message once (the hidden announcement); the
-   * countdown that changes every second is aria-hidden, so it is not read out again every second.
+   * After a 429: keeps the submit button disabled and counts down, in the form status, the seconds the server
+   * asked to wait, then re-enables it and clears the message.
    */
   function startRateLimitCountdown(waitSeconds) {
     const endsAt = Date.now() + waitSeconds * 1000;
-    const announcement = document.createElement('span');
-    announcement.className = 'visually-hidden';
-    announcement.textContent = waitMessage(waitSeconds);
-    const countdown = document.createElement('span');
-    countdown.setAttribute('aria-hidden', 'true');
-    formStatus.replaceChildren(announcement, countdown);
 
     // On every tick the seconds left are worked out again from the end time, so a late tick never makes the
     // count drift.
     function updateCountdown() {
       const secondsLeft = Math.ceil((endsAt - Date.now()) / 1000);
       if (secondsLeft > 0) {
-        countdown.textContent = waitMessage(secondsLeft);
+        formStatus.textContent = waitMessage(secondsLeft);
         return;
       }
       clearInterval(rateLimitTimer);
