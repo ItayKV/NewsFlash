@@ -5,8 +5,8 @@ const { RoleEnum } = require('../models/User');
 // The buttons are only a convenience: every PATCH and DELETE is checked again on the server.
 //
 //          | edit                    | delete
-// guest    | never                   | the comments they wrote (same visitor cookie)
-// reporter | the comments they wrote | the comments they wrote, and any comment on an article they wrote
+// guest    | the comments they wrote | the comments they wrote   (a guest by the same visitor cookie)
+// reporter | the comments they wrote | the comments they wrote   (not others' comments, not even on their article)
 // editor   | the comments they wrote | any comment
 
 /**
@@ -27,16 +27,14 @@ function isCommentWriter(comment, viewer) {
   return viewer.userId === null && viewer.visitorId !== null && comment.guestVisitorId === viewer.visitorId;
 }
 
-/** Only the logged-in user who wrote the comment may edit it (a guest can never edit). */
+/** Only the one who wrote the comment may edit it (a guest too). */
 function canEditComment(comment, viewer) {
-  return Boolean(comment.author) && isCommentWriter(comment, viewer);
+  return isCommentWriter(comment, viewer);
 }
 
-/** An editor, the one who wrote the comment, or the reporter who wrote the article may delete it. */
-function canDeleteComment(comment, viewer, articleAuthorId) {
-  if (viewer.role === RoleEnum.EDITOR) return true;
-  if (isCommentWriter(comment, viewer)) return true;
-  return viewer.role === RoleEnum.REPORTER && articleAuthorId != null && viewer.userId === articleAuthorId;
+/** The one who wrote the comment may delete it, and an editor may delete any comment. */
+function canDeleteComment(comment, viewer) {
+  return viewer.role === RoleEnum.EDITOR || isCommentWriter(comment, viewer);
 }
 
 module.exports = { getCommentViewer, canEditComment, canDeleteComment };

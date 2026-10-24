@@ -17,6 +17,13 @@ const notPermitted = () => httpError(HTTP_STATUS.FORBIDDEN, 'Not permitted');
 const articleNotFound = () => httpError(HTTP_STATUS.NOT_FOUND, 'Article not found');
 const commentNotFound = () => httpError(HTTP_STATUS.NOT_FOUND, 'Comment not found');
 
+// A refused edit or delete: 401 when a guest acts on a logged-in user's comment (only logging in could allow
+// it), otherwise 403.
+const refusal = (comment, viewer) =>
+  viewer.userId === null && comment.author
+    ? httpError(HTTP_STATUS.UNAUTHORIZED, 'Authentication required')
+    : notPermitted();
+
 const sendError = (res, error) => res.status(error.status).json({ error: error.message });
 
 /**
@@ -40,7 +47,7 @@ async function listArticleComments(req, res, next) {
     if (!article) return sendError(res, articleNotFound());
 
     const commentBatch = await commentService.findArticleComments(articleId, { limit, before });
-    res.status(HTTP_STATUS.OK).json(serializeArticleComments(commentBatch, getCommentViewer(req), article.author.id));
+    res.status(HTTP_STATUS.OK).json(serializeArticleComments(commentBatch, getCommentViewer(req)));
   } catch (err) {
     next(err);
   }
@@ -48,7 +55,7 @@ async function listArticleComments(req, res, next) {
 
 /**
  * Adds a comment to a public article. A logged-in user's name is read from the database; a guest sends a
- * name, and their visitor cookie id is stored so the same browser can delete the comment later.
+ * name, and their visitor cookie id is stored so the same browser can edit and delete the comment later.
  */
 async function createComment(req, res, next) {
   try {
@@ -79,13 +86,13 @@ async function createComment(req, res, next) {
     }
 
     const comment = await commentService.createComment(newComment);
-    res.status(HTTP_STATUS.CREATED).json(serializeCommentForViewer(comment, viewer, article.author.id));
+    res.status(HTTP_STATUS.CREATED).json(serializeCommentForViewer(comment, viewer));
   } catch (err) {
     next(err);
   }
 }
 
-/** Replaces the text of a comment. Only the logged-in user who wrote it (the route guard requires a login). */
+/** Replaces the text of a comment. Only the one who wrote it: a logged-in user, or a guest (same visitor cookie). */
 async function updateComment(req, res, next) {
   try {
     if (!isValidUUID(req.params.id)) return sendError(res, invalidRequest('Invalid comment id'));
@@ -98,7 +105,7 @@ async function updateComment(req, res, next) {
     if (!comment) return sendError(res, commentNotFound());
 
     const viewer = getCommentViewer(req);
-    if (!canEditComment(comment, viewer)) return sendError(res, notPermitted());
+    if (!canEditComment(comment, viewer)) return sendError(res, refusal(comment, viewer));
 
     // Saving the same text is not an edit, so the comment is not marked as edited.
     const newText = text.trim();
@@ -106,14 +113,13 @@ async function updateComment(req, res, next) {
       newText === comment.text ? comment : await commentService.updateCommentText(comment.id, newText, new Date());
     if (!updatedComment) return sendError(res, commentNotFound()); // deleted meanwhile
 
-    const articleAuthorId = await articleService.findAuthorId(updatedComment.article);
-    res.status(HTTP_STATUS.OK).json(serializeCommentForViewer(updatedComment, viewer, articleAuthorId));
+    res.status(HTTP_STATUS.OK).json(serializeCommentForViewer(updatedComment, viewer));
   } catch (err) {
     next(err);
   }
 }
 
-/** Deletes a comment: an editor, the one who wrote it (a guest too), or the reporter who wrote the article. */
+/** Deletes a comment: the one who wrote it (a guest too), or an editor (any comment). */
 async function deleteComment(req, res, next) {
   try {
     if (!isValidUUID(req.params.id)) return sendError(res, invalidRequest('Invalid comment id'));
@@ -121,8 +127,8 @@ async function deleteComment(req, res, next) {
     const comment = await commentService.findCommentById(req.params.id);
     if (!comment) return sendError(res, commentNotFound());
 
-    const articleAuthorId = await articleService.findAuthorId(comment.article);
-    if (!canDeleteComment(comment, getCommentViewer(req), articleAuthorId)) return sendError(res, notPermitted());
+    const viewer = getCommentViewer(req);
+    if (!canDeleteComment(comment, viewer)) return sendError(res, refusal(comment, viewer));
 
     const deletedComment = await commentService.deleteCommentById(comment.id);
     if (!deletedComment) return sendError(res, commentNotFound()); // deleted meanwhile

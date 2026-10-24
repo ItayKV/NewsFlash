@@ -9,7 +9,7 @@ const GUEST_NAME_MAX_LENGTH = 50;
 // A reader's comment on a public article, written either by a logged-in user or by a guest:
 //  - logged-in user: author is their { id, name } copy.
 //  - guest: author is null; guestName is the name they typed and guestVisitorId is their visitor cookie id.
-// guestVisitorId lets the same browser delete the comment later. It works like a key, so it must never be
+// guestVisitorId lets the same browser edit and delete the comment later. It works like a key, so it must never be
 // sent to the browser (toJSON removes it, and the serializer never includes it).
 const isGuestComment = function () {
   return this.author == null;

@@ -66,7 +66,7 @@ async function renderArticlePage(req, res, next) {
       commentService.countArticleComments(id),
     ]);
     const viewer = getCommentViewer(req);
-    const { items: comments, nextCursor } = serializeArticleComments(commentBatch, viewer, article.author.id);
+    const { items: comments, nextCursor } = serializeArticleComments(commentBatch, viewer);
 
     res.render('pages/article', {
       article: serializeArticle(article),

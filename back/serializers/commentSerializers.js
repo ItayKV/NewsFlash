@@ -15,15 +15,12 @@ function serializeComment(comment) {
   };
 }
 
-/**
- * The comment plus what this viewer may do with it (canEdit, canDelete), computed on the server.
- * articleAuthorId is the id of the reporter who wrote the comment's article.
- */
-function serializeCommentForViewer(comment, viewer, articleAuthorId) {
+/** The comment plus what this viewer may do with it (canEdit, canDelete), computed on the server. */
+function serializeCommentForViewer(comment, viewer) {
   return {
     ...serializeComment(comment),
     canEdit: canEditComment(comment, viewer),
-    canDelete: canDeleteComment(comment, viewer, articleAuthorId),
+    canDelete: canDeleteComment(comment, viewer),
   };
 }
 
@@ -36,8 +33,8 @@ function toCommentCursor(comment) {
  * A batch of one article's comments for this viewer, and the cursor of the next (older) batch, or null when
  * no older comments are left. Used by the article page and by the "load more" API.
  */
-function serializeArticleComments({ comments, hasMore }, viewer, articleAuthorId) {
-  const items = comments.map((comment) => serializeCommentForViewer(comment, viewer, articleAuthorId));
+function serializeArticleComments({ comments, hasMore }, viewer) {
+  const items = comments.map((comment) => serializeCommentForViewer(comment, viewer));
   return { items, nextCursor: hasMore ? toCommentCursor(items[items.length - 1]) : null };
 }
 
