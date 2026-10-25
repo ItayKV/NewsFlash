@@ -4,7 +4,7 @@ const articleController = require('../../back/controllers/articleController');
 const articleValidators = require('../../back/validators/articleValidators');
 const { serializeDraft } = require('../../back/serializers/articleSerializers');
 const { presentableStatus } = require('../../back/utils/articleUtils');
-const { ARTICLE_CATEGORIES, ArticleStatusEnum } = require('../../back/models/Article');
+const { ARTICLE_CATEGORIES, ArticleStatusEnum, REQUIRED_FIELDS, FIELD_LABELS } = require('../../back/models/Article');
 const { HTTP_STATUS } = require('../../back/config/constants');
 const { renderErrorPage } = require('./errorController');
 
@@ -38,6 +38,8 @@ async function renderEditArticlePage(req, res, next) {
       articleId,
       formDisabled: Boolean(articleId), // an existing article's form stays disabled until the page has loaded it
       categories: ARTICLE_CATEGORIES,
+      requiredFields: REQUIRED_FIELDS, // the same list the server checks on submit, so the form marks exactly these
+      fieldLabels: FIELD_LABELS,
       limits: {
         title: articleValidators.TITLE_MAX_LENGTH,
         summary: articleValidators.SUMMARY_MAX_LENGTH,

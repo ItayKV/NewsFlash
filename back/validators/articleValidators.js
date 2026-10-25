@@ -1,4 +1,4 @@
-const { ARTICLE_CATEGORIES, ArticleStatusEnum, isEmpty } = require('../models/Article');
+const { ARTICLE_CATEGORIES, ArticleStatusEnum, FIELD_LABELS, isEmpty } = require('../models/Article');
 const { isValidUUID } = require('./sharedValidators');
 
 const { DEFAULT_PAGE, MAX_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } = require('../config/constants');
@@ -49,20 +49,20 @@ function getContentError(content) {
   const { title, summary, body, imageUrl, category } = content;
 
   if (title !== undefined && !isTextUpTo(title, TITLE_MAX_LENGTH)) {
-    return `Title must be text of up to ${TITLE_MAX_LENGTH} characters`;
+    return `${FIELD_LABELS.title} must be text of up to ${TITLE_MAX_LENGTH} characters`;
   }
   if (summary !== undefined && !isTextUpTo(summary, SUMMARY_MAX_LENGTH)) {
-    return `Summary must be text of up to ${SUMMARY_MAX_LENGTH} characters`;
+    return `${FIELD_LABELS.summary} must be text of up to ${SUMMARY_MAX_LENGTH} characters`;
   }
   if (body !== undefined && !isTextUpTo(body, BODY_MAX_LENGTH)) {
-    return `Body must be text of up to ${BODY_MAX_LENGTH} characters`;
+    return `${FIELD_LABELS.body} must be text of up to ${BODY_MAX_LENGTH} characters`;
   }
   if (imageUrl !== undefined && !isValidImageUrl(imageUrl)) {
-    return 'Image URL must be empty or a valid https:// address';
+    return `${FIELD_LABELS.imageUrl} must be empty or a valid https:// address`;
   }
   // An empty category means "no category"; any other value must be one of ARTICLE_CATEGORIES.
   if (!isEmpty(category) && !isValidCategory(category)) {
-    return `Category must be one of: ${ARTICLE_CATEGORIES.join(', ')}`;
+    return `${FIELD_LABELS.category} must be one of: ${ARTICLE_CATEGORIES.join(', ')}`;
   }
   return null;
 }

@@ -1,7 +1,15 @@
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const userSnapshotSchema = require('./userSnapshotSchema');
-const { ARTICLE_CATEGORIES, contentSchema, CONTENT_FIELDS, isEmpty, getMissingFields } = require('./contentSchema');
+const {
+  ARTICLE_CATEGORIES,
+  contentSchema,
+  CONTENT_FIELDS,
+  REQUIRED_FIELDS,
+  FIELD_LABELS,
+  isEmpty,
+  getMissingFields,
+} = require('./contentSchema');
 
 const ArticleStatusEnum = Object.freeze({
   IN_PROGRESS: 'in_progress',
@@ -60,5 +68,7 @@ module.exports.ArticleStatusEnum = ArticleStatusEnum;
 module.exports.contentSchema = contentSchema;
 module.exports.ARTICLE_CATEGORIES = ARTICLE_CATEGORIES;
 module.exports.CONTENT_FIELDS = CONTENT_FIELDS;
+module.exports.REQUIRED_FIELDS = REQUIRED_FIELDS;
+module.exports.FIELD_LABELS = FIELD_LABELS;
 module.exports.isEmpty = isEmpty;
 module.exports.getMissingFields = getMissingFields;

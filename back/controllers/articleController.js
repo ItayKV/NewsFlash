@@ -5,7 +5,7 @@ const { EventEnum, logActivity } = require('../services/activityLogger');
 const { presentableStatus } = require('../utils/articleUtils');
 const { serializeArticlesPage, serializeReporterArticles } = require('../serializers/articleSerializers');
 const { RoleEnum } = require('../models/User');
-const { ArticleStatusEnum, CONTENT_FIELDS, isEmpty, getMissingFields } = require('../models/Article');
+const { ArticleStatusEnum, CONTENT_FIELDS, FIELD_LABELS, isEmpty, getMissingFields } = require('../models/Article');
 
 // The controller validates the input and applies the business rules; the service only talks to the database.
 // Expected failures are returned as { status, message }, not thrown. The route guards already check the login
@@ -51,7 +51,8 @@ function canEditDraft(status, session) {
 function getIncompleteContentError(draftContent) {
   const missingFields = getMissingFields(draftContent);
   if (missingFields.length === 0) return null;
-  return invalidRequest(`Article is incomplete. Missing: ${missingFields.join(', ')}`);
+  const missingLabels = missingFields.map((field) => FIELD_LABELS[field]);
+  return invalidRequest(`Please fill in the required fields: ${missingLabels.join(', ')}`);
 }
 
 const TRIMMED_FIELDS = ['title', 'summary', 'imageUrl'];

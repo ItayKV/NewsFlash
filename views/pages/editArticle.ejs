@@ -13,27 +13,51 @@
   <main class="dashboard">
     <h1>Article Editor</h1>
 
-    <form class="edit-form" id="article-form" data-article-id="<%= articleId || '' %>" novalidate>
-      <label class="edit-form__field">Title
-        <input type="text" name="title" maxlength="<%= limits.title %>" <%= formDisabled ? 'disabled' : '' %>>
-      </label>
-      <label class="edit-form__field">Summary
-        <textarea name="summary" rows="3" maxlength="<%= limits.summary %>" <%= formDisabled ? 'disabled' : '' %>></textarea>
-      </label>
-      <label class="edit-form__field">Body
-        <textarea name="body" rows="14" maxlength="<%= limits.body %>" <%= formDisabled ? 'disabled' : '' %>></textarea>
-      </label>
-      <label class="edit-form__field">Image URL (https)
-        <input type="url" name="imageUrl" <%= formDisabled ? 'disabled' : '' %>>
-      </label>
-      <label class="edit-form__field">Category
-        <select name="category" <%= formDisabled ? 'disabled' : '' %>>
+    <%
+      // The asterisks and the required attributes come from REQUIRED_FIELDS and the labels from FIELD_LABELS
+      // (contentSchema.js), the same lists the server uses on submit. editArticle.js reads them from the form.
+      const isRequired = (field) => requiredFields.includes(field);
+      const requiredMarker = (field) => (isRequired(field) ? ' <span class="edit-form__required" aria-hidden="true">*</span>' : '');
+      const requiredAttributes = (field) => (isRequired(field) ? 'required aria-required="true"' : '');
+    %>
+    <%# novalidate: editArticle.js checks the required fields itself (also whitespace-only text) and shows its own messages. %>
+    <form class="edit-form" id="article-form" data-article-id="<%= articleId || '' %>"
+          data-required-fields="<%= JSON.stringify(requiredFields) %>" data-field-labels="<%= JSON.stringify(fieldLabels) %>" novalidate>
+      <div class="edit-form__field">
+        <label for="article-title"><%= fieldLabels.title %><%- requiredMarker('title') %></label>
+        <input id="article-title" type="text" name="title" maxlength="<%= limits.title %>" aria-describedby="article-title-error"
+               <%- requiredAttributes('title') %> <%= formDisabled ? 'disabled' : '' %>>
+        <p class="edit-form__error" id="article-title-error" hidden></p>
+      </div>
+      <div class="edit-form__field">
+        <label for="article-summary"><%= fieldLabels.summary %><%- requiredMarker('summary') %></label>
+        <textarea id="article-summary" name="summary" rows="3" maxlength="<%= limits.summary %>" aria-describedby="article-summary-error"
+                  <%- requiredAttributes('summary') %> <%= formDisabled ? 'disabled' : '' %>></textarea>
+        <p class="edit-form__error" id="article-summary-error" hidden></p>
+      </div>
+      <div class="edit-form__field">
+        <label for="article-body"><%= fieldLabels.body %><%- requiredMarker('body') %></label>
+        <textarea id="article-body" name="body" rows="14" maxlength="<%= limits.body %>" aria-describedby="article-body-error"
+                  <%- requiredAttributes('body') %> <%= formDisabled ? 'disabled' : '' %>></textarea>
+        <p class="edit-form__error" id="article-body-error" hidden></p>
+      </div>
+      <div class="edit-form__field">
+        <label for="article-imageUrl"><%= fieldLabels.imageUrl %> (https)<%- requiredMarker('imageUrl') %></label>
+        <input id="article-imageUrl" type="url" name="imageUrl" aria-describedby="article-imageUrl-error"
+               <%- requiredAttributes('imageUrl') %> <%= formDisabled ? 'disabled' : '' %>>
+        <p class="edit-form__error" id="article-imageUrl-error" hidden></p>
+      </div>
+      <div class="edit-form__field">
+        <label for="article-category"><%= fieldLabels.category %><%- requiredMarker('category') %></label>
+        <select id="article-category" name="category" aria-describedby="article-category-error"
+                <%- requiredAttributes('category') %> <%= formDisabled ? 'disabled' : '' %>>
           <option value="">— choose —</option>
           <% categories.forEach((category) => { %>
             <option value="<%= category %>"><%= category %></option>
           <% }); %>
         </select>
-      </label>
+        <p class="edit-form__error" id="article-category-error" hidden></p>
+      </div>
 
       <div class="edit-form__footer">
         <p class="edit-form__state" id="save-state" role="status"></p>

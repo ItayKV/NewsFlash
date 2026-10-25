@@ -12,6 +12,11 @@ const submitButton = document.getElementById('submit-button');
 const editorNotes = document.getElementById('editor-notes');
 const editorNotesList = document.getElementById('editor-notes-list');
 
+// The required fields and the readable field names, rendered by the server from REQUIRED_FIELDS and FIELD_LABELS
+// (contentSchema.js), so the form checks exactly what the server checks on submit.
+const REQUIRED_FIELDS = JSON.parse(form.dataset.requiredFields);
+const FIELD_LABELS = JSON.parse(form.dataset.fieldLabels);
+
 let articleId = form.dataset.articleId || null;
 let pendingChanges = {}; // fields changed and not saved yet
 let debounceTimer = null;
@@ -22,6 +27,27 @@ let liveContent = {}; // the published version the draft is compared to (empty f
 function showState(message, isError = false) {
   saveState.textContent = message;
   saveState.classList.toggle('edit-form__state--error', isError);
+}
+
+/** Shows the message under the field (an empty message hides it) and marks the field invalid or valid. */
+function showFieldError(field, message) {
+  const control = form.elements[field];
+  const fieldError = document.getElementById(control.getAttribute('aria-describedby'));
+  fieldError.textContent = message;
+  fieldError.hidden = !message;
+  if (message) control.setAttribute('aria-invalid', 'true');
+  else control.removeAttribute('aria-invalid');
+}
+
+const clearFieldError = (field) => showFieldError(field, '');
+
+/** Marks each empty required field under it. Returns the empty ones (an empty list = all are filled). */
+function markMissingFields() {
+  const missingFields = REQUIRED_FIELDS.filter((field) => form.elements[field].value.trim() === '');
+  for (const field of REQUIRED_FIELDS) {
+    showFieldError(field, missingFields.includes(field) ? `${FIELD_LABELS[field]} is required` : '');
+  }
+  return missingFields;
 }
 
 /** A content value as the server stores it, so the form and the live content compare equal. */
@@ -146,8 +172,11 @@ function onFieldChange(event) {
   const { name, value } = event.target;
 
   if (name === 'imageUrl' && !isValidImageUrl(value)) {
-    return showState('Image URL must be empty or a valid https:// address', true);
+    const message = `${FIELD_LABELS.imageUrl} must be empty or a valid https:// address`;
+    showFieldError(name, message);
+    return showState(message, true);
   }
+  clearFieldError(name);
 
   pendingChanges[name] = value;
   showState('Unsaved changes…');
@@ -174,6 +203,13 @@ function flushPendingChanges() {
 async function submitForApproval(event) {
   event.preventDefault();
   if (!hasChangesFromLive()) return showState(NO_CHANGES_MESSAGE, true);
+
+  const missingFields = markMissingFields();
+  if (missingFields.length) {
+    form.elements[missingFields[0]].focus();
+    const missingLabels = missingFields.map((field) => FIELD_LABELS[field]);
+    return showState(`Please fill in the required fields: ${missingLabels.join(', ')}`, true);
+  }
 
   clearTimeout(debounceTimer);
   submitButton.disabled = true;

@@ -26,6 +26,20 @@
   resize: vertical;
 }
 
+.edit-form__required,
+.edit-form__error {
+  color: var(--color-accent);
+}
+
+.edit-form__field [aria-invalid='true'] {
+  border-color: var(--color-accent);
+}
+
+.edit-form__error {
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
 .edit-form__footer {
   display: flex;
   flex-wrap: wrap;
