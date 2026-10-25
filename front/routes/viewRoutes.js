@@ -12,7 +12,8 @@ router.get('/feed', articleControllers.renderFeedPage);
 router.get('/reporter', requirePageRole(RoleEnum.REPORTER), reporterController.renderReporterPage);
 router.get('/reporter/articles', requireRole(RoleEnum.REPORTER), reporterController.renderReporterArticles);
 router.get('/reporter/articles/new', requirePageRole(RoleEnum.REPORTER), reporterController.renderEditArticlePage);
-router.get('/reporter/articles/:id/edit', requirePageRole(RoleEnum.REPORTER), reporterController.renderEditArticlePage);
+// Editors reach the same edit screen from the review page; the API guards enforce who may edit what.
+router.get('/reporter/articles/:id/edit', requirePageRole(RoleEnum.REPORTER, RoleEnum.EDITOR), reporterController.renderEditArticlePage);
 router.get('/reporter/articles/:id/view', requirePageRole(RoleEnum.REPORTER), reporterController.renderDraftPage);
 router.get('/editor/articles', requireRole(RoleEnum.EDITOR), editorController.renderEditorArticles);
 router.get('/editor/articles/:id', requirePageRole(RoleEnum.EDITOR), editorController.renderReviewPage);
