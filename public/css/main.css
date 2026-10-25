@@ -1,3 +1,10 @@
+/*
+ * Breakpoints. The rules outside media queries are the desktop layout; each query adapts it for narrower screens.
+ * Media queries can't read custom properties, so these values are written out in every query that uses them:
+ *   width < 1024px  tablet and mobile: one column, compact weather widget above the feed
+ *   width < 768px   mobile: a single 16px side gutter
+ */
+
 :root {
   --color-bg: #f7f7f5;
   --color-text: #1a1a1a;
@@ -81,10 +88,12 @@ body {
   flex-wrap: wrap;
   gap: 1.5rem;
   padding: 2rem 1.5rem;
+  min-width: 0;
 }
 
 .landing {
   flex: 1;
+  min-width: 0; /* lets the column shrink below its content's widest item, instead of widening the page */
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -158,6 +167,74 @@ body {
   margin-top: 0.5rem;
   font-size: 1.1rem;
   color: #555;
+}
+
+/* Tablet and mobile: one column, with a compact weather widget above the feed (below an infinite feed it can't be reached). */
+@media (width < 1024px) {
+  .home-layout {
+    flex-direction: column;
+  }
+
+  .landing {
+    padding: 0;
+  }
+
+  .sidebar {
+    order: -1;
+    width: 100%;
+    max-width: 720px; /* the feed's width, so the widget lines up with the articles */
+    margin: 0 auto;
+  }
+
+  .weather-widget {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    text-align: left;
+  }
+
+  .weather-widget__title {
+    margin-bottom: 0;
+  }
+
+  .weather-widget__content {
+    display: grid;
+    grid-template-columns: auto auto 1fr; /* icon | temperature | description above city */
+    align-items: center;
+    column-gap: 0.75rem;
+  }
+
+  .weather-widget__icon-frame,
+  .weather-widget__temp {
+    grid-row: span 2;
+  }
+
+  .weather-widget__icon-frame {
+    width: 44px;
+    height: 44px;
+  }
+
+  .weather-widget__icon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .weather-widget__temp {
+    font-size: 1.4rem;
+  }
+
+  .weather-widget__city {
+    margin-top: 0;
+  }
+}
+
+/* Mobile: the page's padding is the only side spacing (the main column and the feed have none below 1024px). */
+@media (width < 768px) {
+  .home-layout {
+    padding: 1rem;
+    gap: 1rem;
+  }
 }
 
 .auth {
