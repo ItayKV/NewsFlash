@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> - The Daily Web</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+  <%- include('../components/header') %>
+  <main class="error-page">
+    <section class="error-page__card">
+      <p class="error-page__status"><%= statusCode %></p>
+      <h1 class="error-page__title"><%= title %></h1>
+      <p class="error-page__message"><%= message %></p>
+      <a href="/" class="toolbar__button">Back to the front page</a>
+    </section>
+  </main>
+</body>
+</html>

@@ -6,6 +6,7 @@ const { serializeDraft } = require('../../back/serializers/articleSerializers');
 const { presentableStatus } = require('../../back/utils/articleUtils');
 const { ARTICLE_CATEGORIES, ArticleStatusEnum } = require('../../back/models/Article');
 const { HTTP_STATUS } = require('../../back/config/constants');
+const { renderErrorPage } = require('./errorController');
 
 /** The reporter's workspace. Their articles are loaded by the page from GET /reporter/articles. */
 async function renderReporterPage(req, res, next) {
@@ -57,11 +58,11 @@ async function renderDraftPage(req, res, next) {
     const { id } = req.params;
     const article = articleValidators.isValidArticleId(id) ? await articleService.findArticleById(id) : null;
     if (!article || article.author.id !== req.session.userId) {
-      return res.status(HTTP_STATUS.NOT_FOUND).type('text').send('Article not found');
+      return renderErrorPage(res, HTTP_STATUS.NOT_FOUND, 'Article not found');
     }
 
     const draftRevision = await articleService.findDraftRevision(article.id);
-    if (!draftRevision) return res.status(HTTP_STATUS.NOT_FOUND).type('text').send('Draft not found');
+    if (!draftRevision) return renderErrorPage(res, HTTP_STATUS.NOT_FOUND, 'Draft not found');
 
     res.render('pages/article', {
       article: serializeDraft(article, draftRevision),

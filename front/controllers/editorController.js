@@ -3,6 +3,7 @@ const articleController = require('../../back/controllers/articleController');
 const articleValidators = require('../../back/validators/articleValidators');
 const { HTTP_STATUS } = require('../../back/config/constants');
 const { ArticleStatusEnum } = require('../../back/models/Article');
+const { renderErrorPage } = require('./errorController');
 
 const HAS_MORE_HEADER = 'X-Has-More';
 
@@ -54,7 +55,7 @@ async function renderReviewPage(req, res, next) {
     const article = articleValidators.isValidArticleId(req.params.id)
       ? await articleService.findArticleById(req.params.id)
       : null;
-    if (!article) return res.status(HTTP_STATUS.NOT_FOUND).type('text').send('Article not found');
+    if (!article) return renderErrorPage(res, HTTP_STATUS.NOT_FOUND, 'Article not found');
 
     const [draftRevision, revisions] = await Promise.all([
       articleService.findDraftRevision(article.id),

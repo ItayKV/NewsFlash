@@ -301,6 +301,41 @@ body {
   visibility: hidden;
 }
 
+.error-page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.error-page__card {
+  width: 100%;
+  max-width: 420px;
+  background-color: #fff;
+  padding: 2.5rem 2rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.error-page__status {
+  font-size: 4rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-accent);
+}
+
+.error-page__title {
+  margin-top: 0.75rem;
+  font-size: 1.5rem;
+}
+
+.error-page__message {
+  margin: 0.75rem 0 1.5rem;
+  color: #555;
+}
+
 .dashboard {
   flex: 1;
   width: 100%;

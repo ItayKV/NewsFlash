@@ -1,6 +1,7 @@
 const articleService = require('../../back/services/articleService');
 const articleValidators = require('../../back/validators/articleValidators');
 const { HTTP_STATUS, DEFAULT_VIEW_BIN_MINUTES } = require('../../back/config/constants');
+const { renderErrorPage } = require('./errorController');
 
 // The editor's Article Analytics pages: a searchable list of the published articles, and one article's
 // views over time (the chart loads them from GET /api/articles/:id/views/timeline).
@@ -61,7 +62,7 @@ async function renderArticleAnalyticsPage(req, res, next) {
   try {
     const { id } = req.params;
     const article = articleValidators.isValidArticleId(id) ? await articleService.findArticleAnalytics(id) : null;
-    if (!article) return res.status(HTTP_STATUS.NOT_FOUND).type('text').send('Article not found');
+    if (!article) return renderErrorPage(res, HTTP_STATUS.NOT_FOUND, 'Article not found');
 
     const revisions = await articleService.findPublishedRevisions(id);
     res.render('pages/articleAnalytics', {
