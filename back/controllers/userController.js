@@ -2,7 +2,6 @@ const userService = require('../services/userService');
 const { HTTP_STATUS, MONGO_DUPLICATE_KEY_ERROR } = require('../config/constants');
 const userValidators = require('../validators/userValidators');
 const { deleteUserSessions } = require('../services/sessionService');
-const { EventEnum, logActivity } = require('../services/activityLogger');
 
 const invalidResponse = (res, message) => res.status(HTTP_STATUS.BAD_REQUEST).json({ error: message });
 
@@ -50,10 +49,7 @@ async function login(req, res, next) {
     if (!userValidators.isSafePassword(password)) return invalidResponse(res, 'Invalid password');
 
     const user = await userService.login(email, password);
-    if (!user) {
-      logActivity(EventEnum.USER_LOGIN_FAILED, req.session, null, `email: ${email}`);
-      return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: 'Wrong email or password' });
-    }
+    if (!user) return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: 'Wrong email or password' });
 
     // Regenerate the session id on login to prevent session fixation.
     // The stored role is what RBAC middleware checks on later requests.
@@ -61,7 +57,6 @@ async function login(req, res, next) {
       if (err) return next(err);
       req.session.userId = user.id;
       req.session.role = user.role;
-      logActivity(EventEnum.USER_LOGIN, req.session, user.id);
       res.status(HTTP_STATUS.OK).json(user);
     });
   } catch (err) {

@@ -137,7 +137,6 @@ async function createArticle(req, res, next) {
     if (!author) return sendError(res, notPermitted());
 
     const { article, draftRevision } = await articleService.createArticleWithDraft(author);
-    logActivity(EventEnum.ARTICLE_CREATED, req.session, article.id, `status: ${article.status}`);
     res.status(HTTP_STATUS.CREATED).json(toArticleResponse(article, draftRevision));
   } catch (err) {
     next(err);
@@ -207,7 +206,6 @@ async function startEditing(req, res, next) {
     const started = await articleService.startArticleUpdate(article);
     if (!started) return sendError(res, statusChanged());
 
-    logActivity(EventEnum.ARTICLE_STATUS_CHANGED, req.session, article.id, `${article.status} -> ${started.article.status}`);
     res.status(HTTP_STATUS.OK).json(toArticleResponse(started.article, started.draftRevision));
   } catch (err) {
     next(err);
@@ -266,7 +264,6 @@ async function submitForApproval(req, res, next) {
     const updatedArticle = await articleService.moveToPendingApproval(article);
     if (!updatedArticle) return sendError(res, statusChanged());
 
-    logActivity(EventEnum.ARTICLE_STATUS_CHANGED, req.session, article.id, `${article.status} -> ${updatedArticle.status}`);
     res.status(HTTP_STATUS.OK).json(toArticleResponse(updatedArticle, draftRevision));
   } catch (err) {
     next(err);
@@ -301,6 +298,7 @@ async function approveArticle(req, res, next) {
     if (!updatedArticle) return sendError(res, statusChanged());
 
     logActivity(EventEnum.ARTICLE_STATUS_CHANGED, req.session, article.id, `${article.status} -> ${updatedArticle.status}`);
+    logActivity(EventEnum.ARTICLE_PUBLISHED, req.session, article.id, article.publishedAt ? 'approved update' : 'new article');
     res.status(HTTP_STATUS.OK).json(toArticleResponse(updatedArticle, null));
   } catch (err) {
     next(err);
