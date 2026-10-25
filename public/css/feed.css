@@ -3,6 +3,7 @@
   max-width: 720px;
   margin: 0 auto;
   padding: 1.5rem 1rem;
+  min-width: 0;
 }
 
 .feed__search {
@@ -84,7 +85,9 @@
 
 .article-card__image {
   flex: 1 1 200px;
-  max-height: 220px;
+  width: 100%; /* a percentage width means the image never sets the card's minimum width */
+  aspect-ratio: 16 / 9;
+  max-height: 220px; /* desktop only, where the card text is taller than the image */
   object-fit: cover;
   min-width: 0;
 }
@@ -93,6 +96,7 @@
   flex: 3 1 320px;
   display: flex;
   flex-direction: column;
+  min-width: 0;
   padding: 1rem;
 }
 
@@ -149,4 +153,15 @@
 .article-card__meta {
   font-size: 0.85rem;
   color: #666;
+}
+
+/* Tablet and mobile (breakpoints: see the top of main.css): the page provides the side spacing, and images stay 16:9. */
+@media (width < 1024px) {
+  .feed {
+    padding: 0;
+  }
+
+  .article-card__image {
+    max-height: none;
+  }
 }
