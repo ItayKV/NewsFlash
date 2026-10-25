@@ -14,6 +14,7 @@ const { RoleEnum } = require('./back/models/User');
 const { ArticleStatusEnum } = require('./back/models/Article');
 const { requirePageRole } = require('./back/middleware/rbac');
 const { logError } = require('./back/services/activityLogger');
+const { renderErrorPage, wantsHtmlPage, handleNotFound } = require('./front/controllers/errorController');
 
 const app = express();
 
@@ -64,14 +65,20 @@ app.use('/api/articles', articleRoutes);
 app.use('/api', commentRoutes);
 app.use(weatherRoutes);
 
-// Minimal JSON error handler. Malformed JSON -> 400. Other request errors raised by Express and its middleware
+// No route matched: the error page for browser navigation, JSON for API and AJAX calls.
+app.use(handleNotFound);
+
+// Global error handler. Malformed JSON -> 400. Other request errors raised by Express and its middleware
 // (a bad URL, a too large body, an unsupported charset or encoding) already carry their own 4xx status: it is
 // kept (CLAUDE.md section 6, avoid 500). Anything else is a real failure -> 500, also written to logs/error.log.
+// A browser navigating to a page gets the 500 error page; API and AJAX calls get JSON.
 app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
   if (err.type === 'entity.parse.failed') return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: 'Invalid JSON' });
   if (err.status >= 400 && err.status < 500) return res.status(err.status).json({ error: err.message });
   console.error(err);
   logError(`${req.method} ${req.originalUrl}`, req.session, err);
+  if (wantsHtmlPage(req)) return renderErrorPage(res, HTTP_STATUS.INTERNAL_SERVER_ERROR);
   res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
 });
 

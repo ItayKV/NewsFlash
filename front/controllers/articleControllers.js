@@ -7,6 +7,7 @@ const { HTTP_STATUS, DEFAULT_PAGE_SIZE } = require('../../back/config/constants'
 const { serializeArticlesPage, serializeArticle } = require('../../back/serializers/articleSerializers');
 const { serializeArticleComments } = require('../../back/serializers/commentSerializers');
 const { getCommentViewer } = require('../../back/utils/commentUtils');
+const { renderErrorPage } = require('./errorController');
 
 const { ARTICLE_CATEGORIES } = require('../../back/models/Article');
 
@@ -72,7 +73,7 @@ async function renderArticlePage(req, res, next) {
   try {
     const { id } = req.params;
     const article = articleValidators.isValidArticleId(id) ? await articleService.findPublicArticleById(id) : null;
-    if (!article) return res.status(HTTP_STATUS.NOT_FOUND).type('text').send('Article not found');
+    if (!article) return renderErrorPage(res, HTTP_STATUS.NOT_FOUND, 'Article not found');
 
     // A unique view per viewer. Queued, written later in bulk.
     viewQueue.addView(article._id, getViewerId(req));
