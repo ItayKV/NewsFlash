@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Article Editor - The Daily Web</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/editor.css">
+</head>
+<body>
+  <%- include('../components/header') %>
+  <main class="dashboard">
+    <h1>Article Editor</h1>
+
+    <form class="edit-form" id="article-form" data-article-id="<%= articleId || '' %>" novalidate>
+      <label class="edit-form__field">Title
+        <input type="text" name="title" maxlength="<%= limits.title %>" <%= formDisabled ? 'disabled' : '' %>>
+      </label>
+      <label class="edit-form__field">Summary
+        <textarea name="summary" rows="3" maxlength="<%= limits.summary %>" <%= formDisabled ? 'disabled' : '' %>></textarea>
+      </label>
+      <label class="edit-form__field">Body
+        <textarea name="body" rows="14" maxlength="<%= limits.body %>" <%= formDisabled ? 'disabled' : '' %>></textarea>
+      </label>
+      <label class="edit-form__field">Image URL (https)
+        <input type="url" name="imageUrl" <%= formDisabled ? 'disabled' : '' %>>
+      </label>
+      <label class="edit-form__field">Category
+        <select name="category" <%= formDisabled ? 'disabled' : '' %>>
+          <option value="">— choose —</option>
+          <% categories.forEach((category) => { %>
+            <option value="<%= category %>"><%= category %></option>
+          <% }); %>
+        </select>
+      </label>
+
+      <div class="edit-form__footer">
+        <p class="edit-form__state" id="save-state" role="status"></p>
+        <button type="submit" class="edit-form__submit" id="submit-button" <%= formDisabled ? 'disabled' : '' %>>Submit for approval</button>
+      </div>
+    </form>
+
+    <div class="edit-notes" id="editor-notes" hidden>
+      <h2 class="edit-notes__title">Editor's notes</h2>
+      <ul id="editor-notes-list"></ul>
+    </div>
+  </main>
+  <script src="/front/editArticle.js" defer></script>
+</body>
+</html>

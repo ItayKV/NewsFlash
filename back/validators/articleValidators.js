@@ -120,6 +120,9 @@ function getEditorNotesError(notes) {
 }
 
 module.exports = {
+  TITLE_MAX_LENGTH,
+  SUMMARY_MAX_LENGTH,
+  BODY_MAX_LENGTH,
   EDITOR_NOTE_MAX_LENGTH,
   EDITOR_NOTES_MAX_COUNT,
   isValidImageUrl,
