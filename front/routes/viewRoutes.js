@@ -9,6 +9,7 @@ const router = express.Router();
 router.get('/', articleControllers.renderHomePage);
 router.get('/feed', articleControllers.renderFeedPage);
 router.get('/editor/articles', requireRole(RoleEnum.EDITOR), editorController.renderEditorArticles);
+router.get('/editor/stats', requirePageRole(RoleEnum.EDITOR), editorController.renderStatsPage);
 router.get('/editor/articles/:id', requirePageRole(RoleEnum.EDITOR), editorController.renderReviewPage);
 router.get('/articles/:id', articleControllers.renderArticlePage);
 

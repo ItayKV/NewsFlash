@@ -1,6 +1,8 @@
 const articleService = require('../services/articleService');
 const { HTTP_STATUS } = require('../config/constants');
 const articleValidators = require('../validators/articleValidators');
+const analyticsService = require('../services/analyticsService');
+const analyticsValidators = require('../validators/analyticsValidators');
 const { EventEnum, logActivity } = require('../services/activityLogger');
 const { presentableStatus } = require('../utils/articleUtils');
 const { serializeArticlesPage } = require('../serializers/articleSerializers');
@@ -166,11 +168,13 @@ async function listEditorArticles(req, res, next) {
     const { status } = req.query;
     if (status && !articleValidators.isValidStatus(status)) return sendError(res, invalidRequest('Invalid status'));
 
+    const { search, error: searchError } = articleValidators.parseFeedFilters({ search: req.query.search });
+    if (searchError) return sendError(res, invalidRequest(searchError));
+
     const pagination = articleValidators.parsePagination(req.query);
     if (pagination.error) return sendError(res, invalidRequest(pagination.error));
 
-    const filter = status ? { status } : {};
-    await sendArticlePage(res, filter, pagination, true);
+    await sendArticlePage(res, articleService.buildEditorFilter({ status, search }), pagination, true);
   } catch (err) {
     next(err);
   }
@@ -369,8 +373,25 @@ async function getArticleForReview(req, res, next) {
   }
 }
 
+/** The article's views over time and its published updates, for the Impact Analytics chart. */
+async function getArticleImpact(req, res, next) {
+  try {
+    const impactQuery = analyticsValidators.parseImpactQuery(req.query);
+    if (impactQuery.error) return sendError(res, invalidRequest(impactQuery.error));
+
+    const article = await articleService.findArticleById(req.params.id);
+    if (!article) return sendError(res, articleNotFound());
+
+    const impact = await analyticsService.getArticleImpact(article.id, impactQuery);
+    res.status(HTTP_STATUS.OK).json({ articleId: article.id, title: article.content?.title || null, ...impact });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getArticleForReview,
+  getArticleImpact,
   listPublicArticles,
   createArticle,
   listReporterArticles,

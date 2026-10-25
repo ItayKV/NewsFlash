@@ -1,4 +1,4 @@
-/* Editor pages: the review queue and the article review. Uses the variables of main.css. */
+/* Editor pages: the review queue, the article review and Impact Analytics. Uses the variables of main.css. */
 
 .dashboard__filter {
   display: flex;
@@ -46,7 +46,12 @@
   text-decoration: underline;
 }
 
-.review {
+.dashboard__item--selected {
+  outline: 2px solid var(--color-accent);
+}
+
+.review,
+.stats {
   flex: 1;
   width: 100%;
   max-width: 1100px;
@@ -233,6 +238,88 @@
 
 .review__history ol {
   padding-left: 1.25rem;
+}
+
+.stats__picker {
+  margin-bottom: 2rem;
+}
+
+.stats__picker input {
+  width: 100%;
+  font: inherit;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+}
+
+.stats__results {
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.stats__results .dashboard__item {
+  cursor: pointer;
+}
+
+.stats__total {
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+.stats__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.stats__controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: #555;
+}
+
+.stats__controls select {
+  font: inherit;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #bbb;
+  border-radius: 8px;
+}
+
+.stats__canvas-wrap {
+  position: relative;
+  height: 360px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stats__legend {
+  color: #555;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.stats__table-wrap {
+  overflow-x: auto;
+}
+
+.stats__table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+}
+
+.stats__table th,
+.stats__table td {
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+  border-bottom: 1px solid #eee;
 }
 
 @media (max-width: 700px) {

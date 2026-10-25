@@ -7,6 +7,8 @@ const userService = require('../back/services/userService');
 const userValidators = require('../back/validators/userValidators');
 const Article = require('../back/models/Article');
 const ArticleRevision = require('../back/models/ArticleRevision');
+const ArticleViewLog = require('../back/models/ArticleViewLog');
+const ArticleHourlyViews = require('../back/models/ArticleHourlyViews');
 const User = require('../back/models/User');
 const SEED_ARTICLES = require('./seedArticles');
 
@@ -38,9 +40,16 @@ const DAY_IN_MS = 24 * 60 * 60 * 1000;
 // Deletes every article and every revision (the users are kept), then makes the indexes of both collections
 // match the schemas: indexes of an older schema are dropped and missing ones are created.
 async function clearArticles() {
+  await ArticleViewLog.deleteMany({});
+  await ArticleHourlyViews.deleteMany({});
   const { deletedCount: deletedRevisions } = await ArticleRevision.deleteMany({});
   const { deletedCount: deletedArticles } = await Article.deleteMany({});
-  await Promise.all([Article.syncIndexes(), ArticleRevision.syncIndexes()]);
+  await Promise.all([
+    Article.syncIndexes(),
+    ArticleRevision.syncIndexes(),
+    ArticleViewLog.syncIndexes(),
+    ArticleHourlyViews.syncIndexes(),
+  ]);
   console.log(`Deleted ${deletedArticles} articles and ${deletedRevisions} revisions`);
 }
 
@@ -72,7 +81,19 @@ async function seedArticles() {
   }
 }
 
+const HOUR_IN_MS = 60 * 60 * 1000;
 const UPDATED_ARTICLES_COUNT = 10; // published articles that get two updates after their first publication
+const VIEW_HISTORY_DAYS = 30;
+const VIEW_VOLUME = 0.25; // scales the number of seeded views, so the seed stays quick
+
+// A deterministic pseudo-random number in [0, 1), so the seeded view data is the same on every run.
+function createRandom(seed) {
+  let state = seed;
+  return () => {
+    state = (state * 1664525 + 1013904223) % 4294967296;
+    return state / 4294967296;
+  };
+}
 
 const UPDATE_PARAGRAPHS = [
   'Update: officials confirmed new figures late in the day, and the numbers above were corrected accordingly.',
@@ -170,6 +191,60 @@ async function seedWorkflowArticles() {
   console.log('Created workflow articles: 4 in progress, 4 pending, 3 returned, 3 pending updates');
 }
 
+// The views of the last VIEW_HISTORY_DAYS days of every article that has a published version: a daily rhythm,
+// a decay after the first publication and a jump after each approved update. Every view is a different viewer
+// of that article (ArticleViewLog), and the views of each hour are also added up (ArticleHourlyViews).
+async function seedViews() {
+  const random = createRandom(42);
+  const nowHour = Math.floor(Date.now() / HOUR_IN_MS) * HOUR_IN_MS;
+  const firstHour = nowHour - VIEW_HISTORY_DAYS * 24 * HOUR_IN_MS;
+  const articles = await Article.find({ publishedAt: { $ne: null } }).select('publishedAt').lean();
+  const revisions = await ArticleRevision.find({ publishedAt: { $ne: null } }).select('article publishedAt').lean();
+  const updateTimes = new Map();
+  for (const revision of revisions) {
+    if (!updateTimes.has(revision.article)) updateTimes.set(revision.article, []);
+    updateTimes.get(revision.article).push(revision.publishedAt.getTime());
+  }
+
+  const viewLogs = [];
+  const hourlyViews = [];
+  for (const article of articles) {
+    const popularity = 2 + random() * 10;
+    const publishTimes = updateTimes.get(article._id) || [article.publishedAt.getTime()];
+    let viewerNumber = 0;
+    for (let hour = firstHour; hour <= nowHour; hour += HOUR_IN_MS) {
+      if (hour < article.publishedAt.getTime()) continue;
+      const hourOfDay = new Date(hour).getUTCHours();
+      const dailyRhythm = 0.4 + 0.6 * Math.max(0, Math.sin(((hourOfDay - 6) / 24) * 2 * Math.PI) + 0.3);
+      // Interest decays with the time since the latest publication or update, and jumps at each one.
+      const latestPublish = Math.max(...publishTimes.filter((time) => time <= hour), article.publishedAt.getTime());
+      const hoursSincePublish = (hour - latestPublish) / HOUR_IN_MS;
+      const interest = 0.25 + Math.exp(-hoursSincePublish / 48) * 2.5;
+      const count = Math.round(popularity * dailyRhythm * interest * (0.7 + random() * 0.6) * VIEW_VOLUME);
+      if (count === 0) continue;
+
+      hourlyViews.push({ article: article._id, hour: new Date(hour), count });
+      for (let view = 0; view < count; view++) {
+        viewerNumber += 1; // a viewer sees an article once, so this article never repeats a viewer
+        viewLogs.push({
+          article: article._id,
+          viewerId: `seed-visitor-${viewerNumber}`,
+          viewedAt: new Date(hour + Math.floor(random() * HOUR_IN_MS)),
+        });
+      }
+    }
+  }
+
+  const CHUNK_SIZE = 5000;
+  for (let start = 0; start < viewLogs.length; start += CHUNK_SIZE) {
+    await ArticleViewLog.insertMany(viewLogs.slice(start, start + CHUNK_SIZE));
+  }
+  for (let start = 0; start < hourlyViews.length; start += CHUNK_SIZE) {
+    await ArticleHourlyViews.insertMany(hourlyViews.slice(start, start + CHUNK_SIZE));
+  }
+  console.log(`Created ${viewLogs.length} views and ${hourlyViews.length} hourly counters for ${articles.length} articles`);
+}
+
 async function main() {
   await connectDB();
   if (mongoose.connection.readyState !== 1) throw new Error('Database is not connected');
@@ -179,6 +254,7 @@ async function main() {
   const editor = await User.findOne({ role: RoleEnum.EDITOR }).sort({ email: 1 });
   await seedPublishedUpdates(editor);
   await seedWorkflowArticles();
+  await seedViews();
 }
 
 main()
