@@ -1,0 +1,27 @@
+<%# One content field: the live version and/or the draft, side by side. A changed field is marked. %>
+<%
+  const paragraphsOf = (text) => text.split(/\n{2,}/).filter((paragraph) => paragraph.trim());
+  const sides = [];
+  if (showLive) sides.push({ title: 'Published', text: field.liveText });
+  if (showDraft) sides.push({ title: 'Draft', text: field.draftText });
+%>
+<section class="review__field<%= showLive && showDraft && field.isChanged ? ' review__field--changed' : '' %>">
+  <h3 class="review__field-title">
+    <%= field.label %>
+    <% if (showLive && showDraft && field.isChanged) { %><span class="review__changed-flag">changed</span><% } %>
+  </h3>
+  <div class="review__compare">
+    <% sides.forEach((side) => { %>
+      <div class="review__side">
+        <h4 class="review__side-title"><%= side.title %></h4>
+        <div class="review__text">
+          <% if (!side.text) { %>
+            <p class="review__empty">(empty)</p>
+          <% } else { paragraphsOf(side.text).forEach((paragraph) => { %>
+            <p><%= paragraph %></p>
+          <% }) } %>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+</section>

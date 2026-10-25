@@ -165,6 +165,22 @@ async function findArticlePage(
   return { articles, total };
 }
 
+/** The published revisions of the article (the updates), oldest first: when and by which editor. */
+function findPublishedRevisions(articleId) {
+  return ArticleRevision.find({ article: articleId, publishedAt: { $ne: null } })
+    .sort({ publishedAt: 1 })
+    .select('publishedAt approvedBy -_id')
+    .lean();
+}
+
+/** The draft titles of the given articles, as a Map of article id -> title (articles without a draft are absent). */
+async function findDraftTitles(articleIds) {
+  const draftRevisions = await ArticleRevision.find({ article: { $in: articleIds }, publishedAt: null })
+    .select('article content.title')
+    .lean();
+  return new Map(draftRevisions.map((draftRevision) => [draftRevision.article, draftRevision.content?.title || '']));
+}
+
 // The Article fields a public feed card needs.
 const FEED_FIELDS = 'content.title content.summary content.imageUrl content.category author publishedAt';
 
@@ -202,6 +218,7 @@ module.exports = {
   findPublicArticleById,
   findAuthorId,
   findDraftRevision,
+  findPublishedRevisions,
   findUserSnapshot,
   moveToPendingApproval,
   returnToReporter,
@@ -211,5 +228,6 @@ module.exports = {
   publishDraftRevision,
   deleteArticleWithRevisions,
   findArticlePage,
+  findDraftTitles,
   findPublicArticlePage,
 };

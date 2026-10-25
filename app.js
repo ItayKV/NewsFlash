@@ -10,6 +10,7 @@ const weatherRoutes = require('./back/routes/weatherRoutes');
 const userService = require('./back/services/userService');
 const { HTTP_STATUS } = require('./back/config/constants');
 const { RoleEnum } = require('./back/models/User');
+const { ArticleStatusEnum } = require('./back/models/Article');
 const { requirePageRole } = require('./back/middleware/rbac');
 
 const app = express();
@@ -28,6 +29,7 @@ app.use(visitorAuthenticationMiddleware);
 app.use((req, res, next) => {
   res.locals.currentUser = req.session.userId ? { id: req.session.userId, role: req.session.role } : null;
   res.locals.RoleEnum = RoleEnum;
+  res.locals.ArticleStatusEnum = ArticleStatusEnum;
   next();
 });
 
