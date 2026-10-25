@@ -2,6 +2,7 @@ const express = require('express');
 const articleControllers = require('../controllers/articleControllers');
 const reporterController = require('../controllers/reporterController');
 const editorController = require('../controllers/editorController');
+const analyticsController = require('../controllers/analyticsController');
 const { requirePageRole, requireRole } = require('../../back/middleware/rbac');
 const { RoleEnum } = require('../../back/models/User');
 
@@ -17,6 +18,9 @@ router.get('/reporter/articles/:id/edit', requirePageRole(RoleEnum.REPORTER, Rol
 router.get('/reporter/articles/:id/view', requirePageRole(RoleEnum.REPORTER), reporterController.renderDraftPage);
 router.get('/editor/articles', requireRole(RoleEnum.EDITOR), editorController.renderEditorArticles);
 router.get('/editor/articles/:id', requirePageRole(RoleEnum.EDITOR), editorController.renderReviewPage);
+router.get('/editor/analytics', requirePageRole(RoleEnum.EDITOR), analyticsController.renderAnalyticsPage);
+router.get('/editor/analytics/articles', requireRole(RoleEnum.EDITOR), analyticsController.renderAnalyticsArticles);
+router.get('/editor/analytics/:id', requirePageRole(RoleEnum.EDITOR), analyticsController.renderArticleAnalyticsPage);
 router.get('/articles/:id', articleControllers.renderArticlePage);
 
 module.exports = router;

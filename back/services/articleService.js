@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Article = require('../models/Article');
 const ArticleRevision = require('../models/ArticleRevision');
+const ArticleView = require('../models/ArticleView');
 const userService = require('./userService');
 const { MONGO_DUPLICATE_KEY_ERROR } = require('../config/constants');
 
@@ -22,6 +23,11 @@ function runInTransaction(work) {
 /** The article, or null when there is none. */
 function findArticleById(articleId) {
   return Article.findById(articleId);
+}
+
+/** Whether an article with this id exists. */
+async function articleExists(articleId) {
+  return (await Article.exists({ _id: articleId })) !== null;
 }
 
 /** The id of the article's author, or null when there is no such article. */
@@ -137,9 +143,10 @@ function publishDraftRevision({ article, draftRevision, approvedBy, publishedAt 
   });
 }
 
-/** Deletes the article and its revisions. The article goes last, so a failed delete can be repeated. */
-async function deleteArticleWithRevisions(articleId) {
+/** Deletes the article, its revisions and its views. The article goes last, so a failed delete can be repeated. */
+async function deleteArticle(articleId) {
   await ArticleRevision.deleteMany({ article: articleId });
+  await ArticleView.deleteMany({ article: articleId });
   await Article.deleteOne({ _id: articleId });
 }
 
@@ -200,18 +207,67 @@ const PUBLIC_FILTER = Object.freeze({ publishedAt: { $ne: null } });
 
 const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/**
- * One page of the public articles, newest publication first, and the total count. Optionally only one
- * category, and only articles whose title or summary contains the search text (case-insensitive).
- */
-function findPublicArticlePage(pagination, { search = null, category = null } = {}) {
+/** The filter of the public articles: optionally one category, and a search in the title or summary (case-insensitive). */
+function buildPublicFilter({ search = null, category = null } = {}) {
   const filter = { ...PUBLIC_FILTER };
   if (category) filter['content.category'] = category;
   if (search) {
     const searchPattern = new RegExp(escapeRegex(search), 'i');
     filter.$or = [{ 'content.title': searchPattern }, { 'content.summary': searchPattern }];
   }
-  return findArticlePage(filter, pagination, { sort: { publishedAt: -1 }, fields: FEED_FIELDS });
+  return filter;
+}
+
+// The feed's sort orders (FeedSortEnum values): newest publication first, or most unique views first.
+const FEED_SORTS = Object.freeze({ newest: { publishedAt: -1 }, popular: { viewCount: -1 } });
+
+/**
+ * One page of the articles matching the filter that the viewer has (hasViewed = true) or has not
+ * (hasViewed = false) viewed, and the total count, in one query: each article is looked up in ArticleView
+ * by { viewer, article } (the unique index), so the viewer's viewed ids are never loaded into a list.
+ */
+async function findArticlePageByViewer(filter, { page, limit }, { sort, fields, viewerId, hasViewed }) {
+  const projection = Object.fromEntries(fields.split(' ').map((field) => [field, 1]));
+  const [{ articles, totalCount }] = await Article.aggregate([
+    { $match: filter },
+    {
+      $lookup: {
+        from: ArticleView.collection.name,
+        localField: '_id',
+        foreignField: 'article',
+        pipeline: [{ $match: { viewer: viewerId } }, { $limit: 1 }, { $project: { _id: 1 } }],
+        as: 'viewerView',
+      },
+    },
+    { $match: { 'viewerView.0': { $exists: hasViewed } } },
+    {
+      $facet: {
+        articles: [
+          { $sort: { ...sort, _id: -1 } }, // _id makes the order stable between pages
+          { $skip: (page - 1) * limit },
+          { $limit: limit },
+          { $project: projection },
+        ],
+        totalCount: [{ $count: 'total' }],
+      },
+    },
+  ]);
+  return { articles, total: totalCount[0]?.total ?? 0 };
+}
+
+/**
+ * One page of the public articles and the total count, newest publication first unless sort is 'popular'.
+ * Optionally only one category, only articles whose title or summary contains the search text
+ * (case-insensitive), and only the articles the viewer has (hasViewed = true) or has not (false) viewed.
+ */
+function findPublicArticlePage(
+  pagination,
+  { search = null, category = null, sort = 'newest', viewerId = null, hasViewed = null } = {}
+) {
+  const filter = buildPublicFilter({ search, category });
+  const pageOptions = { sort: FEED_SORTS[sort], fields: FEED_FIELDS };
+  if (hasViewed === null) return findArticlePage(filter, pagination, pageOptions);
+  return findArticlePageByViewer(filter, pagination, { ...pageOptions, viewerId, hasViewed });
 }
 
 // The Article fields the public article page needs (the live content, with its body).
@@ -224,7 +280,23 @@ function findPublicArticleById(articleId) {
     .lean();
 }
 
+// The Article fields the editor's analytics pages need (the live title and the total views).
+const ANALYTICS_FIELDS = 'content.title author publishedAt viewCount';
+
+/** One page of the public articles for the analytics list, most viewed first, optionally a title or summary search. */
+function findAnalyticsArticlePage(pagination, { search = null } = {}) {
+  return findArticlePage(buildPublicFilter({ search }), pagination, { sort: FEED_SORTS.popular, fields: ANALYTICS_FIELDS });
+}
+
+/** The public article's analytics fields, or null when there is none or it was never published (it has no views). */
+function findArticleAnalytics(articleId) {
+  return Article.findOne({ _id: articleId, ...PUBLIC_FILTER }).select(ANALYTICS_FIELDS).lean();
+}
+
 module.exports = {
+  articleExists,
+  findAnalyticsArticlePage,
+  findArticleAnalytics,
   findArticleById,
   findPublicArticleById,
   findAuthorId,
@@ -237,7 +309,7 @@ module.exports = {
   startArticleUpdate,
   saveDraftChanges,
   publishDraftRevision,
-  deleteArticleWithRevisions,
+  deleteArticle,
   findArticlePage,
   findAuthorArticles,
   findDraftTitles,

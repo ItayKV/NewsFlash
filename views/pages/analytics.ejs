@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Article Analytics - The Daily Web</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+  <%- include('../components/header') %>
+  <main class="dashboard">
+    <h1>Article Analytics</h1>
+    <h4 class="dashboard__subtitle">Search the published articles, most viewed first, and open one to see its views over time.</h4>
+    <form class="analytics__search" id="analytics-search" role="search">
+      <input type="search" name="search" maxlength="100" placeholder="Search by title or summary…" aria-label="Search articles">
+      <button type="submit">Search</button>
+    </form>
+    <ul class="dashboard__list" id="analytics-articles"></ul>
+    <p class="dashboard__message" id="analytics-articles-status" role="status">Loading…</p>
+    <button type="button" class="dashboard__more" id="analytics-load-more" hidden>Load more</button>
+  </main>
+  <script src="/front/analyticsList.js" defer></script>
+</body>
+</html>
