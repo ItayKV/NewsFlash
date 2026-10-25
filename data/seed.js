@@ -72,12 +72,113 @@ async function seedArticles() {
   }
 }
 
+const UPDATED_ARTICLES_COUNT = 10; // published articles that get two updates after their first publication
+
+const UPDATE_PARAGRAPHS = [
+  'Update: officials confirmed new figures late in the day, and the numbers above were corrected accordingly.',
+  'Update: a spokesperson responded to the criticism and said a detailed statement would follow this week.',
+];
+
+// Gives the first published articles two approved updates after their first publication: each is a new
+// published revision (approved by an editor) and becomes the live content.
+async function seedPublishedUpdates(editor) {
+  const approvedBy = { id: editor.id, name: editor.name };
+  const articles = await Article.find({ status: Article.ArticleStatusEnum.PUBLISHED })
+    .sort({ publishedAt: -1 })
+    .limit(UPDATED_ARTICLES_COUNT);
+
+  for (const [index, article] of articles.entries()) {
+    // Published 14 to 23 days ago, so both updates are in the past and have a week of views around them.
+    const firstPublishedAt = new Date(Date.now() - (14 + index) * DAY_IN_MS);
+    const firstContent = article.content.toObject();
+    const secondContent = { ...firstContent, body: `${firstContent.body}\n\n${UPDATE_PARAGRAPHS[0]}` };
+    const thirdContent = {
+      ...secondContent,
+      title: `${firstContent.title} (updated)`,
+      summary: `Updated: ${firstContent.summary}`,
+    };
+
+    await ArticleRevision.updateOne({ article: article.id }, { $set: { publishedAt: firstPublishedAt } });
+    await ArticleRevision.create([
+      { article: article.id, content: secondContent, publishedAt: new Date(firstPublishedAt.getTime() + 4 * DAY_IN_MS), approvedBy },
+      { article: article.id, content: thirdContent, publishedAt: new Date(firstPublishedAt.getTime() + 9 * DAY_IN_MS), approvedBy },
+    ]);
+    await Article.updateOne({ _id: article.id }, { $set: { content: thirdContent, publishedAt: firstPublishedAt } });
+    console.log(`Added 2 updates to "${firstContent.title}"`);
+  }
+}
+
+// Articles in the other workflow states, so the editor's queue has something to review:
+// new drafts (in progress), new submissions and updates of published articles (pending approval), and
+// returned articles with the editor's notes.
+async function seedWorkflowArticles() {
+  const reporters = await User.find({ role: RoleEnum.REPORTER }).sort({ email: 1 });
+  const sampleArticles = Object.entries(SEED_ARTICLES).flatMap(([category, articles]) =>
+    articles.map(([title, summary, body]) => ({ category, title, summary, body }))
+  );
+  const { ArticleStatusEnum } = Article;
+  const imageUrl = (index) => `https://picsum.photos/seed/daily-web-draft-${index}/800/450`;
+
+  const createWorkflowArticle = async (index, status, { content, draftContent, editorNotes = [] }) => {
+    const reporter = reporters[index % reporters.length];
+    const article = await Article.create({
+      author: { id: reporter.id, name: reporter.name },
+      status,
+      content,
+      publishedAt: content ? new Date(Date.now() - (40 + index) * DAY_IN_MS) : undefined,
+      editorNotes,
+    });
+    await ArticleRevision.create({ article: article.id, content: draftContent });
+    return article;
+  };
+
+  // The sample content is reused with a changed title, so these articles are separate from the published ones.
+  const draftOf = (index) => {
+    const { category, title, summary, body } = sampleArticles[index % sampleArticles.length];
+    return { title: `${title} (draft ${index})`, summary, body, imageUrl: imageUrl(index), category };
+  };
+
+  for (let index = 0; index < 4; index++) {
+    const draft = draftOf(index);
+    // In progress: an unfinished draft (the last one has only a title).
+    await createWorkflowArticle(index, ArticleStatusEnum.IN_PROGRESS, {
+      draftContent: index === 3 ? { title: draft.title } : { ...draft, body: draft.body.split('\n\n')[0] },
+    });
+  }
+  for (let index = 4; index < 8; index++) {
+    await createWorkflowArticle(index, ArticleStatusEnum.PENDING_APPROVAL, { draftContent: draftOf(index) });
+  }
+  for (let index = 8; index < 11; index++) {
+    await createWorkflowArticle(index, ArticleStatusEnum.RETURNED_FOR_REVISION, {
+      draftContent: draftOf(index),
+      editorNotes: ['The second paragraph needs a named source.', 'Please shorten the summary to two sentences.'],
+    });
+  }
+
+  // Pending updates of published articles: the live content stays public, the draft waits for approval.
+  const publishedArticles = await Article.find({ status: ArticleStatusEnum.PUBLISHED }).sort({ publishedAt: 1 }).limit(3);
+  for (const article of publishedArticles) {
+    const liveContent = article.content.toObject();
+    const draftContent = {
+      ...liveContent,
+      title: `${liveContent.title}: what we know now`,
+      body: `${liveContent.body.replace(/\.\s/, '. Sources say ')}\n\n${UPDATE_PARAGRAPHS[1]}`,
+    };
+    await ArticleRevision.create({ article: article.id, content: draftContent });
+    await Article.updateOne({ _id: article.id }, { $set: { status: ArticleStatusEnum.PENDING_APPROVAL } });
+  }
+  console.log('Created workflow articles: 4 in progress, 4 pending, 3 returned, 3 pending updates');
+}
+
 async function main() {
   await connectDB();
   if (mongoose.connection.readyState !== 1) throw new Error('Database is not connected');
   await seedUsers();
   await clearArticles();
   await seedArticles();
+  const editor = await User.findOne({ role: RoleEnum.EDITOR }).sort({ email: 1 });
+  await seedPublishedUpdates(editor);
+  await seedWorkflowArticles();
 }
 
 main()
