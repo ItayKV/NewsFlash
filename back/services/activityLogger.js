@@ -44,9 +44,10 @@ function logActivity(event, session, targetId, details = '') {
 }
 
 /**
- * Writes one error line (ISO time, request, actor, error message, stack) to logs/error.log. Called by the error
- * handler in app.js for 500 errors only, which prints the error on the console itself. The source is the request
- * ("POST /api/articles"); the actor is "-" when the request has no session (e.g. the session store is down).
+ * Writes one error line (ISO time, source, actor, error message, stack) to logs/error.log. Called by the error
+ * handler in app.js for 500 errors and by the view queue when a batch of views fails to save; both print the error
+ * on the console themselves. The source is the request ("POST /api/articles") or the failed background task; the
+ * actor is "-" when there is no session (e.g. the session store is down, or a background task).
  * A logging failure is reported on the console only: it never fails the request and never throws.
  * Callers must not pass request bodies, passwords, session ids or secrets in the source.
  */

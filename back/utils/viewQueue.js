@@ -1,4 +1,5 @@
 const articleViewService = require('../services/articleViewService');
+const { logError } = require('../services/activityLogger');
 const { MAX_QUEUED_VIEWS, VIEW_FLUSH_INTERVAL_MS } = require('../config/constants');
 
 // Article page visits wait here in memory and are written in bulk (one query for the views, one for the
@@ -31,6 +32,7 @@ async function writeViews(views) {
     if (newViews.length > 0) await articleViewService.incrementViewCounts(countViewsByArticle(newViews));
   } catch (err) {
     console.error(`Failed to save ${views.length} queued views:`, err.message);
+    logError(`[ERROR] viewQueue.writeViews: failed to save ${views.length} queued views`, null, err);
   }
 }
 
