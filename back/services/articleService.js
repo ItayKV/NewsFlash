@@ -2,8 +2,10 @@ const mongoose = require('mongoose');
 const Article = require('../models/Article');
 const ArticleRevision = require('../models/ArticleRevision');
 const ArticleView = require('../models/ArticleView');
+const Comment = require('../models/Comment');
 const userService = require('./userService');
 const { MONGO_DUPLICATE_KEY_ERROR } = require('../config/constants');
+const { escapeRegex } = require('../utils/regexUtils');
 
 // Data access only (queries, updates, transactions); validation and business rules are in the controller.
 // A guarded update that matched nothing returns null.
@@ -143,8 +145,14 @@ function publishDraftRevision({ article, draftRevision, approvedBy, publishedAt 
   });
 }
 
-/** Deletes the article, its revisions and its views. The article goes last, so a failed delete can be repeated. */
+/**
+ * Deletes the article with everything that belongs to it: its comments, revisions and views (CLAUDE.md 7.3).
+ * It is first marked as deleted (deletedAt), so no new comment can be added while it is being deleted.
+ * No transaction (7.10): the article goes last, so if a step fails the delete can simply be repeated.
+ */
 async function deleteArticle(articleId) {
+  await Article.updateOne({ _id: articleId }, { $set: { deletedAt: new Date() } });
+  await Comment.deleteMany({ article: articleId });
   await ArticleRevision.deleteMany({ article: articleId });
   await ArticleView.deleteMany({ article: articleId });
   await Article.deleteOne({ _id: articleId });
@@ -204,8 +212,6 @@ const FEED_FIELDS = 'content.title content.summary content.imageUrl content.cate
 
 // An article is public once it was published for the first time (publishedAt is set with its first approval).
 const PUBLIC_FILTER = Object.freeze({ publishedAt: { $ne: null } });
-
-const escapeRegex = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** The filter of the public articles: optionally one category, and a search in the title or summary (case-insensitive). */
 function buildPublicFilter({ search = null, category = null } = {}) {
@@ -273,9 +279,12 @@ function findPublicArticlePage(
 // The Article fields the public article page needs (the live content, with its body).
 const PUBLIC_ARTICLE_FIELDS = 'content author publishedAt';
 
-/** The public article (live content), or null when there is none or it was never published. */
+/**
+ * The public article (live content), or null when there is none, it was never published, or it is being
+ * deleted (deletedAt is set).
+ */
 function findPublicArticleById(articleId) {
-  return Article.findOne({ _id: articleId, ...PUBLIC_FILTER })
+  return Article.findOne({ _id: articleId, ...PUBLIC_FILTER, deletedAt: null })
     .select(PUBLIC_ARTICLE_FIELDS)
     .lean();
 }

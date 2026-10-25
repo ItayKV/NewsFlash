@@ -1,4 +1,5 @@
 const { ARTICLE_CATEGORIES, ArticleStatusEnum, isEmpty } = require('../models/Article');
+const { isValidUUID } = require('./sharedValidators');
 
 const { DEFAULT_PAGE, MAX_PAGE, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } = require('../config/constants');
 
@@ -67,8 +68,7 @@ function getContentError(content) {
 }
 
 // A well-formed article id (a UUID, see Article._id).
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const isValidArticleId = (articleId) => isString(articleId) && UUID_PATTERN.test(articleId);
+const isValidArticleId = (articleId) => isValidUUID(articleId);
 
 // A positive whole number given as a query string value (e.g. '3').
 const isPositiveIntegerString = (value) => isString(value) && /^[1-9]\d*$/.test(value);

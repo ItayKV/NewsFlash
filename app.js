@@ -6,6 +6,7 @@ const { sessionMiddleware } = require('./back/config/session');
 const viewRoutes = require('./front/routes/viewRoutes');
 const userRoutes = require('./back/routes/userRoutes');
 const articleRoutes = require('./back/routes/articleRoutes');
+const commentRoutes = require('./back/routes/commentRoutes');
 const weatherRoutes = require('./back/routes/weatherRoutes');
 const userService = require('./back/services/userService');
 const { HTTP_STATUS } = require('./back/config/constants');
@@ -60,6 +61,7 @@ app.get('/editor', requirePageRole(RoleEnum.EDITOR), async (req, res, next) => {
 app.use(viewRoutes);
 app.use(userRoutes);
 app.use('/api/articles', articleRoutes);
+app.use('/api', commentRoutes);
 app.use(weatherRoutes);
 
 // Minimal JSON error handler. Malformed JSON -> 400. Other request errors raised by Express and its middleware

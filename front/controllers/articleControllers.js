@@ -1,13 +1,17 @@
 const articleService = require('../../back/services/articleService');
+const commentService = require('../../back/services/commentService');
 const weatherService = require('../../back/services/weatherService');
 const viewQueue = require('../../back/utils/viewQueue');
 const articleValidators = require('../../back/validators/articleValidators');
-const { HTTP_STATUS } = require('../../back/config/constants');
-const { serializeArticlesPage, serializeArticle } =require('../../back/serializers/articleSerializers');
+const { HTTP_STATUS, DEFAULT_PAGE_SIZE } = require('../../back/config/constants');
+const { serializeArticlesPage, serializeArticle } = require('../../back/serializers/articleSerializers');
+const { serializeArticleComments } = require('../../back/serializers/commentSerializers');
+const { getCommentViewer } = require('../../back/utils/commentUtils');
 
 const { ARTICLE_CATEGORIES } = require('../../back/models/Article');
 
 const { ViewedFilterEnum } = articleValidators;
+const { COMMENT_TEXT_MAX_LENGTH, GUEST_NAME_MAX_LENGTH } = require('../../back/models/Comment');
 
 const HAS_MORE_HEADER = 'X-Has-More';
 
@@ -60,7 +64,10 @@ async function renderFeedPage(req, res, next) {
   }
 }
 
-/** The article page, server-rendered with the full live article (body included) for readers and crawlers. */
+/**
+ * The article page, server-rendered with the full live article (body included) and its newest comments, for
+ * readers and crawlers. Each comment says what this viewer may do with it; older comments load with "load more".
+ */
 async function renderArticlePage(req, res, next) {
   try {
     const { id } = req.params;
@@ -70,7 +77,22 @@ async function renderArticlePage(req, res, next) {
     // A unique view per viewer. Queued, written later in bulk.
     viewQueue.addView(article._id, getViewerId(req));
 
-    res.render('pages/article', { article: serializeArticle(article) });
+    const [commentBatch, commentCount] = await Promise.all([
+      commentService.findArticleComments(id, { limit: DEFAULT_PAGE_SIZE }),
+      commentService.countArticleComments(id),
+    ]);
+    const viewer = getCommentViewer(req);
+    const { items: comments, nextCursor } = serializeArticleComments(commentBatch, viewer);
+
+    res.render('pages/article', {
+      article: serializeArticle(article),
+      comments,
+      commentCount,
+      nextCommentCursor: nextCursor,
+      isGuest: viewer.userId === null,
+      COMMENT_TEXT_MAX_LENGTH,
+      GUEST_NAME_MAX_LENGTH,
+    });
   } catch (err) {
     next(err);
   }

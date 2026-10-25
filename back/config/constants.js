@@ -7,6 +7,7 @@ const HTTP_STATUS = Object.freeze({
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   CONFLICT: 409,
+  TOO_MANY_REQUESTS: 429,
   INTERNAL_SERVER_ERROR: 500,
   SERVICE_UNAVAILABLE: 503,
 });
@@ -24,6 +25,10 @@ const MAX_PAGE = 100000;
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
+// Comment rate limits (see CLAUDE.md 7.8), counted over a sliding window of one minute.
+const COMMENT_RATE_WINDOW_MS = 60 * 1000;  // 1 minute
+const COMMENT_LIMIT_PER_CLIENT = 3;        // per logged-in user, or per guest visitor cookie
+const COMMENT_LIMIT_PER_IP = 20;           // higher, so several people on one network are not blocked
 // View queue: views are written in bulk when this many are waiting, or at the interval, whichever comes first.
 const MAX_QUEUED_VIEWS = 500;
 const VIEW_FLUSH_INTERVAL_MS = 60 * 1000; // 1 minute
@@ -41,6 +46,9 @@ module.exports = {
   MAX_PAGE,
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
+  COMMENT_RATE_WINDOW_MS,
+  COMMENT_LIMIT_PER_CLIENT,
+  COMMENT_LIMIT_PER_IP,
   MAX_QUEUED_VIEWS,
   VIEW_FLUSH_INTERVAL_MS,
   DEFAULT_VIEW_BIN_MINUTES,

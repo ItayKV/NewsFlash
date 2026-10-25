@@ -342,7 +342,7 @@ async function returnForRevision(req, res, next) {
   }
 }
 
-/** An editor deletes the article with all its revisions and views. */
+/** An editor deletes the article with its comments, revisions and views. */
 async function deleteArticle(req, res, next) {
   try {
     const article = await articleService.findArticleById(req.params.id);

@@ -26,6 +26,7 @@ const articleSchema = new mongoose.Schema(
     editorNotes: { type: [{ type: String, trim: true }], default: [] }, // the editor's feedback points of the current return
     publishedAt: { type: Date }, // first publication only
     viewCount: { type: Number, default: 0, min: 0 }, // unique views (ArticleView docs), for the popularity sort
+    deletedAt: { type: Date, default: null }, // set when a delete starts, just before the article is removed
   },
   { timestamps: { createdAt: false } }
 );

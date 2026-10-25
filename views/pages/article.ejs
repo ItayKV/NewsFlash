@@ -7,6 +7,7 @@
   <meta name="description" content="<%= article.summary %>">
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/article.css">
+  <script src="/front/article.js" defer></script>
 </head>
 <body>
   <%- include('../components/header') %>
@@ -41,6 +42,67 @@
         <% }) %>
       </div>
     </article>
+
+    <%# Only the live article has comments; the reporter's draft view is rendered without them. %>
+    <% if (locals.comments) { %>
+    <section id="comments" class="comments" aria-labelledby="comments-heading"
+             data-article-id="<%= article.id %>" data-next-cursor="<%= nextCommentCursor || '' %>">
+      <h2 id="comments-heading" class="comments__heading">
+        Comments (<span id="comment-count"><%= commentCount %></span>)
+      </h2>
+
+      <%# novalidate: article.js checks the fields itself (also whitespace-only text) and shows its own message. %>
+      <form id="comment-form" class="comment-form" novalidate>
+        <% if (isGuest) { %>
+          <label class="comment-form__label" for="comment-guest-name">Your name</label>
+          <input id="comment-guest-name" class="comment-form__input" name="guestName" type="text"
+                 autocomplete="name" required maxlength="<%= GUEST_NAME_MAX_LENGTH %>">
+        <% } %>
+        <label class="comment-form__label" for="comment-text">Your comment</label>
+        <textarea id="comment-text" class="comment-form__input" name="text" rows="4"
+                  required maxlength="<%= COMMENT_TEXT_MAX_LENGTH %>"></textarea>
+        <div class="comment-form__actions">
+          <button type="submit" class="comment-form__submit">Post comment</button>
+          <p id="comment-form-status" class="comment-form__status" aria-live="polite"></p>
+        </div>
+      </form>
+
+      <ol id="comment-list" class="comment-list">
+        <% comments.forEach((comment) => { %>
+          <%- include('../partials/commentItem', { comment }) %>
+        <% }) %>
+      </ol>
+      <p id="comments-empty" class="comments__empty"<%= comments.length ? ' hidden' : '' %>>
+        No comments yet. Be the first to comment.
+      </p>
+
+      <div class="comments__more">
+        <button id="comments-load-more" type="button" class="comments__load-more"<%= nextCommentCursor ? '' : ' hidden' %>>
+          Load more comments
+        </button>
+        <p id="comments-status" class="comments__status" aria-live="polite"></p>
+      </div>
+
+      <%# Both buttons are in the template; article.js removes the ones the viewer may not use. %>
+      <template id="comment-template">
+        <%- include('../partials/commentItem', {
+          comment: { id: '', authorName: '', text: '', createdAt: new Date(0), editedAt: null, canEdit: true, canDelete: true },
+        }) %>
+      </template>
+
+      <%# The form that replaces a comment's text while it is being edited. %>
+      <template id="comment-edit-template">
+        <form class="comment-edit-form" novalidate>
+          <textarea class="comment-form__input" name="text" rows="3" aria-label="Edit your comment"
+                    required maxlength="<%= COMMENT_TEXT_MAX_LENGTH %>"></textarea>
+          <div class="comment-edit-form__actions">
+            <button type="submit" class="comment-form__submit">Save</button>
+            <button type="button" class="comment__action" data-action="cancel-edit">Cancel</button>
+          </div>
+        </form>
+      </template>
+    </section>
+    <% } %>
   </main>
 </body>
 </html>
