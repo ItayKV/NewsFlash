@@ -345,3 +345,12 @@ textarea.comment-form__input {
   align-items: center;
   gap: 0.9rem;
 }
+
+.article-page__notice {
+  margin-bottom: 1rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 6px;
+  background-color: #fff4d9;
+  color: #8a6300;
+  font-size: 0.9rem;
+}

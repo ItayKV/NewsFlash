@@ -14,17 +14,23 @@
   <main>
     <article class="article-page">
       <div class="article-page__top">
-        <a class="article-page__back" href="/">&larr; Back to feed</a>
+        <a class="article-page__back" href="<%= locals.backHref || '/' %>">&larr; <%= locals.backLabel || 'Back to feed' %></a>
         <% if (article.category) { %>
           <span class="article-page__category"><%= article.category %></span>
         <% } %>
       </div>
+      <% if (locals.notice) { %>
+        <p class="article-page__notice" role="status"><%= locals.notice %></p>
+      <% } %>
       <h1 class="article-page__title"><%= article.title %></h1>
       <p class="article-page__meta">
-        <% if (article.authorName) { %><span><%= article.authorName %></span> · <% } %>
-        <time datetime="<%= new Date(article.publishedAt).toISOString() %>">
-          <%= new Date(article.publishedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) %>
-        </time>
+        <% if (article.authorName) { %><span><%= article.authorName %></span><% } %>
+        <% if (article.authorName && article.publishedAt) { %> · <% } %>
+        <% if (article.publishedAt) { %>
+          <time datetime="<%= new Date(article.publishedAt).toISOString() %>">
+            <%= new Date(article.publishedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }) %>
+          </time>
+        <% } %>
       </p>
       <% if (article.imageUrl) { %>
         <img class="article-page__image" src="<%= article.imageUrl %>" alt="">
@@ -37,6 +43,8 @@
       </div>
     </article>
 
+    <%# Only the live article has comments; the reporter's draft view is rendered without them. %>
+    <% if (locals.comments) { %>
     <section id="comments" class="comments" aria-labelledby="comments-heading"
              data-article-id="<%= article.id %>" data-next-cursor="<%= nextCommentCursor || '' %>">
       <h2 id="comments-heading" class="comments__heading">
@@ -94,6 +102,7 @@
         </form>
       </template>
     </section>
+    <% } %>
   </main>
 </body>
 </html>

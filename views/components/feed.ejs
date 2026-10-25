@@ -8,6 +8,15 @@
         <option value="<%= category %>"><%= category %></option>
       <% }) %>
     </select>
+    <select class="feed__search-select" name="sort" aria-label="Sort by">
+      <option value="">Newest first</option>
+      <option value="popular">Most viewed</option>
+    </select>
+    <select class="feed__search-select" name="viewed" aria-label="Viewed articles">
+      <option value="">All articles</option>
+      <option value="viewed">Viewed</option>
+      <option value="unviewed">Not viewed</option>
+    </select>
     <button class="feed__search-button" type="submit">Search</button>
   </form>
   <button class="feed__reset" id="feed-reset" type="button">Reset search</button>

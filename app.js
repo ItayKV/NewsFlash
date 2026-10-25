@@ -11,7 +11,9 @@ const weatherRoutes = require('./back/routes/weatherRoutes');
 const userService = require('./back/services/userService');
 const { HTTP_STATUS } = require('./back/config/constants');
 const { RoleEnum } = require('./back/models/User');
+const { ArticleStatusEnum } = require('./back/models/Article');
 const { requirePageRole } = require('./back/middleware/rbac');
+const { logError } = require('./back/services/activityLogger');
 
 const app = express();
 
@@ -29,22 +31,13 @@ app.use(visitorAuthenticationMiddleware);
 app.use((req, res, next) => {
   res.locals.currentUser = req.session.userId ? { id: req.session.userId, role: req.session.role } : null;
   res.locals.RoleEnum = RoleEnum;
+  res.locals.ArticleStatusEnum = ArticleStatusEnum;
   next();
 });
 
 app.get('/login', (req, res) => {
   res.render('pages/login');
 });
-
-// TODO: replace with a real lookup of this reporter's articles once the Article model exists.
-function findReporterArticles() {
-  return [
-    { title: 'City Council Approves New Park Budget', status: 'published' },
-    { title: 'Local Startup Raises Series A Funding', status: 'pending_approval' },
-    { title: 'Weather Patterns Shift Ahead of Fall', status: 'in_progress' },
-    { title: 'School District Announces Budget Cuts', status: 'returned_for_revision' },
-  ];
-}
 
 // TODO: replace with a real lookup of articles pending review once the Article model exists.
 function findReviewQueueArticles() {
@@ -55,17 +48,7 @@ function findReviewQueueArticles() {
   ];
 }
 
-// The article lists are rendered into the page itself, so the first response
-// already contains them and no second request is needed.
-app.get('/reporter', requirePageRole(RoleEnum.REPORTER), async (req, res, next) => {
-  try {
-    const reporter = await userService.findById(req.session.userId);
-    res.render('pages/reporter', { reporterName: reporter.name, articles: findReporterArticles() });
-  } catch (err) {
-    next(err);
-  }
-});
-
+// The editor's list is rendered into the page itself, so the first response already contains it.
 app.get('/editor', requirePageRole(RoleEnum.EDITOR), async (req, res, next) => {
   try {
     const editor = await userService.findById(req.session.userId);
@@ -83,11 +66,12 @@ app.use(weatherRoutes);
 
 // Minimal JSON error handler. Malformed JSON -> 400. Other request errors raised by Express and its middleware
 // (a bad URL, a too large body, an unsupported charset or encoding) already carry their own 4xx status: it is
-// kept (CLAUDE.md section 6, avoid 500). Anything else is a real failure -> 500.
+// kept (CLAUDE.md section 6, avoid 500). Anything else is a real failure -> 500, also written to logs/error.log.
 app.use((err, req, res, next) => {
   if (err.type === 'entity.parse.failed') return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: 'Invalid JSON' });
   if (err.status >= 400 && err.status < 500) return res.status(err.status).json({ error: err.message });
   console.error(err);
+  logError(`${req.method} ${req.originalUrl}`, req.session, err);
   res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: 'Internal server error' });
 });
 

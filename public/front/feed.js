@@ -1,4 +1,4 @@
-// All the logic relates to infinte scrolling, and to searching by text or category
+// All the logic relates to infinte scrolling, and to searching by text, category, sort and viewed status
 document.addEventListener('DOMContentLoaded', () => {
   const feed = document.getElementById('feed');
   const searchForm = document.getElementById('feed-search');
@@ -11,11 +11,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const hasMore = () => feed.dataset.hasMore === 'true';
 
-  // The current search text and category, as a query string (without the page).
+  // The current search text, category, sort and viewed filter, as a query string (without the page).
+  // Empty values (the defaults) are left out.
   function buildFilterQuery() {
     const formData = new FormData(searchForm);
     const params = new URLSearchParams();
-    for (const field of ['search', 'category']) {
+    for (const field of ['search', 'category', 'sort', 'viewed']) {
       const value = String(formData.get(field) || '').trim();
       if (value) params.set(field, value);
     }
@@ -81,7 +82,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (entries.some((entry) => entry.isIntersecting)) loadNextPage();
   }, { rootMargin: '300px' });
 
-  // The reset button is only visible while the search differs from the default (no text, all categories).
+  // The reset button is only visible while the search differs from the default (no text, all categories,
+  // newest first, all articles).
   // It stays in the layout when invisible, so showing it doesn't push the articles down.
   function updateResetButton() {
     resetButton.classList.toggle('feed__reset--visible', buildFilterQuery().size > 0);
@@ -91,7 +93,9 @@ document.addEventListener('DOMContentLoaded', () => {
     event.preventDefault();
     search();
   });
-  searchForm.elements.category.addEventListener('change', search);
+  for (const selectName of ['category', 'sort', 'viewed']) {
+    searchForm.elements[selectName].addEventListener('change', search);
+  }
   // The browser's clear (x) button fires "search" with an empty value; the category is kept.
   searchForm.elements.search.addEventListener('search', (event) => {
     if (!event.target.value) search();

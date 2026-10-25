@@ -25,6 +25,7 @@ const articleSchema = new mongoose.Schema(
     content: { type: contentSchema },
     editorNotes: { type: [{ type: String, trim: true }], default: [] }, // the editor's feedback points of the current return
     publishedAt: { type: Date }, // first publication only
+    viewCount: { type: Number, default: 0, min: 0 }, // unique views (ArticleView docs), for the popularity sort
     deletedAt: { type: Date, default: null }, // set when a delete starts, just before the article is removed
   },
   { timestamps: { createdAt: false } }
@@ -36,6 +37,8 @@ articleSchema.index({ 'content.title': 'text', 'content.summary': 'text' });
 // sorted newest first.
 articleSchema.index({ publishedAt: -1 });
 articleSchema.index({ 'content.category': 1, publishedAt: -1 });
+// Public feed sorted by popularity.
+articleSchema.index({ viewCount: -1 });
 // Editor queue by status, reporter workspace by author.
 articleSchema.index({ status: 1, updatedAt: -1 });
 articleSchema.index({ 'author.id': 1, updatedAt: -1 });
