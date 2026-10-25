@@ -24,14 +24,14 @@ function requireRole(...allowedRoles) {
 }
 
 /**
- * Page-route version of requireRole for a single role: sends guests to
- * /login and wrong-role users to /, without exposing the page markup to
- * either. (API routes use requireRole, which returns JSON errors instead.)
+ * Page-route version of requireRole: sends guests to /login and users
+ * whose role is not one of `allowedRoles` to /, without exposing the page
+ * markup to either. (API routes use requireRole, which returns JSON errors instead.)
  */
-function requirePageRole(role) {
+function requirePageRole(...allowedRoles) {
   return function (req, res, next) {
     if (!req.session.userId) return res.redirect('/login');
-    if (req.session.role !== role) return res.redirect('/');
+    if (!allowedRoles.includes(req.session.role)) return res.redirect('/');
     next();
   };
 }

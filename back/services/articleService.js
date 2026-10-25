@@ -173,11 +173,23 @@ function findAuthorArticles(authorId, pagination) {
   return findArticlePage({ 'author.id': authorId }, pagination, { fields: AUTHOR_LIST_FIELDS });
 }
 
-/** The drafts (article id and title only) of the given articles; an article without a draft has none. */
-function findDraftTitles(articleIds) {
-  return ArticleRevision.find({ article: { $in: articleIds }, publishedAt: null })
+/** The published revisions of the article (the updates), oldest first: when and by which editor. */
+function findPublishedRevisions(articleId) {
+  return ArticleRevision.find({ article: articleId, publishedAt: { $ne: null } })
+    .sort({ publishedAt: 1 })
+    .select('publishedAt approvedBy -_id')
+    .lean();
+}
+
+/**
+ * The draft titles of the given articles, as a Map of article id (string) -> title (articles without a draft are
+ * absent). The keys are strings because two ObjectId instances of the same id are different Map keys.
+ */
+async function findDraftTitles(articleIds) {
+  const draftRevisions = await ArticleRevision.find({ article: { $in: articleIds }, publishedAt: null })
     .select('article content.title')
     .lean();
+  return new Map(draftRevisions.map((draftRevision) => [String(draftRevision.article), draftRevision.content?.title || '']));
 }
 
 // The Article fields a public feed card needs.
@@ -217,7 +229,7 @@ module.exports = {
   findPublicArticleById,
   findAuthorId,
   findDraftRevision,
-  findDraftTitles,
+  findPublishedRevisions,
   findUserSnapshot,
   moveToPendingApproval,
   returnToReporter,
@@ -228,5 +240,6 @@ module.exports = {
   deleteArticleWithRevisions,
   findArticlePage,
   findAuthorArticles,
+  findDraftTitles,
   findPublicArticlePage,
 };

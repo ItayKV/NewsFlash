@@ -40,7 +40,7 @@ function serializeDraft(article, draftRevision) {
 function serializeReporterArticles(articles, draftTitles) {
   return articles.map((article) => ({
     id: article._id,
-    title: (article.status === ArticleStatusEnum.PUBLISHED ? article.content?.title : draftTitles.get(article._id)) || '',
+    title: (article.status === ArticleStatusEnum.PUBLISHED ? article.content?.title : draftTitles.get(String(article._id))) || '',
     status: article.status,
   }));
 }
