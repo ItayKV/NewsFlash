@@ -1,10 +1,12 @@
 <% articles.forEach((article) => { %>
-  <li class="dashboard__item">
+  <li class="dashboard__item dashboard__item--stacked">
     <a class="dashboard__title dashboard__link" href="/editor/analytics/<%= article.id %>"><%= article.title %></a>
-    <span class="dashboard__meta">by <%= article.authorName || 'Unknown' %></span>
-    <time class="dashboard__meta" datetime="<%= new Date(article.publishedAt).toISOString() %>">
-      Published <%= new Date(article.publishedAt).toLocaleDateString('en-GB') %>
-    </time>
-    <span class="analytics__views"><%= article.viewCount %> <%= article.viewCount === 1 ? 'view' : 'views' %></span>
+    <div class="dashboard__details">
+      <span class="dashboard__meta">by <%= article.authorName || 'Unknown' %></span>
+      <time class="dashboard__meta" datetime="<%= new Date(article.publishedAt).toISOString() %>">
+        Published <%= new Date(article.publishedAt).toLocaleDateString('en-GB') %>
+      </time>
+      <span class="analytics__views"><%= article.viewCount %> <%= article.viewCount === 1 ? 'view' : 'views' %></span>
+    </div>
   </li>
 <% }); %>
