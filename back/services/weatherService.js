@@ -65,12 +65,12 @@ function getCurrentWeather() {
 
 /**
  * Returns the weather at a visitor's coordinates, or null if it could not be fetched.
- * Coordinates are rounded to 1 decimal place (about 11 km), so nearby visitors share one cache entry,
+ * Coordinates are rounded to 2 decimal places (about 1.1 km), so nearby visitors share one cache entry,
  * and an entry is reused for CACHE_TTL_MS before OpenWeatherMap is asked again.
  */
 async function getWeatherByCoordinates(lat, lon) {
-  const roundedLat = Math.round(lat * 10) / 10;
-  const roundedLon = Math.round(lon * 10) / 10;
+  const roundedLat = Math.round(lat * 100) / 100;
+  const roundedLon = Math.round(lon * 100) / 100;
   const cacheKey = `${roundedLat},${roundedLon}`;
 
   const cached = weatherByLocation.get(cacheKey);
